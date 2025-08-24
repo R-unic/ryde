@@ -1,8 +1,10 @@
 use std::fmt;
 
+use bincode::{Decode, Encode};
+
 use crate::value::VmValue;
 
-#[derive(Debug, Clone)]
+#[derive(Encode, Decode, PartialEq, Debug, Clone, Copy)]
 pub enum Instruction {
     // /// Load a constant value from the constant pool into a register
     // LOADC {

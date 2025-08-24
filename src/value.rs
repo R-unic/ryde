@@ -1,6 +1,8 @@
 use std::cmp::Ordering;
 
-#[derive(Debug, Clone, Copy)]
+use bincode::{Decode, Encode};
+
+#[derive(Encode, Decode, Debug, Clone, Copy)]
 pub enum VmValue {
     Float(f64),
     Int(i32),
@@ -12,9 +14,9 @@ pub enum VmValue {
 impl VmValue {
     pub fn is_truthy(&self) -> bool {
         match self {
-            VmValue::Int(_) | VmValue::Float(_) => true,
             VmValue::Boolean(v) => *v,
             VmValue::Null => false,
+            _ => true,
         }
     }
 }
@@ -40,8 +42,7 @@ impl PartialEq for VmValue {
             (VmValue::Int(a), VmValue::Float(b)) => (*a as f64) == *b,
             (VmValue::Float(a), VmValue::Int(b)) => *a == (*b as f64),
             (VmValue::Boolean(a), VmValue::Boolean(b)) => *a == *b,
-            (VmValue::Null, VmValue::Null) => true,
-            _ => false,
+            _ => core::mem::discriminant(self) == core::mem::discriminant(other),
         }
     }
 }

@@ -1,17 +1,18 @@
-use crate::error::VmError;
+use crate::error::vm::VmError;
 use crate::instruction::Instruction;
+use crate::serde::Program;
 use crate::value::VmValue;
 
-pub struct Vm {
+pub struct Vm<'a> {
     pub pc: usize,
     pub registers: Vec<VmValue>,
-    pub program: Vec<Instruction>,
+    pub program: &'a Program,
     // pub call_stack: Vec<Frame>,
     // pub variables: HashMap<String, VmValue>,
 }
 
-impl Vm {
-    pub fn new(program: Vec<Instruction>, register_count: usize) -> Self {
+impl<'a> Vm<'a> {
+    pub fn new(program: &'a Program, register_count: usize) -> Self {
         Self {
             pc: 0,
             registers: vec![VmValue::Null; register_count],
@@ -22,8 +23,8 @@ impl Vm {
     }
 
     pub fn run(&mut self) -> Result<(), VmError> {
-        while self.pc < self.program.len() {
-            let instruction = self.program[self.pc].clone();
+        while self.pc < self.instruction_count() {
+            let instruction = self.current_instruction().clone();
             self.pc += 1;
             self.execute_instruction(instruction)?;
         }
@@ -71,7 +72,7 @@ impl Vm {
             GTE { target, a, b } => self.comparison_binop(target, a, b, |a, b| a >= b)?,
             NOT { target, operand } => self.logical_unop(target, operand, |v| !v)?,
             PRINT(target) => println!("{:?}", self.get_register(target)?),
-            HALT => self.pc = self.program.len(),
+            HALT => self.pc = self.instruction_count(),
         }
         Ok(())
     }
@@ -191,4 +192,12 @@ impl Vm {
     //         Ok(())
     //     }
     // }
+
+    fn current_instruction(&self) -> Instruction {
+        self.program.instructions[self.pc]
+    }
+
+    fn instruction_count(&self) -> usize {
+        self.program.instructions.len()
+    }
 }
