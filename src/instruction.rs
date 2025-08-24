@@ -4,6 +4,11 @@ use crate::value::VmValue;
 
 #[derive(Debug, Clone)]
 pub enum Instruction {
+    // /// Load a constant value from the constant pool into a register
+    // LOADC {
+    //     target: usize,
+    //     constant_index: usize,
+    // },
     /// Load a constant value directly into a register
     LOADV {
         target: usize,
