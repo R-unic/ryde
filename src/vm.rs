@@ -1,0 +1,194 @@
+use crate::error::VmError;
+use crate::instruction::Instruction;
+use crate::value::VmValue;
+
+pub struct Vm {
+    pub pc: usize,
+    pub registers: Vec<VmValue>,
+    pub program: Vec<Instruction>,
+    // pub call_stack: Vec<Frame>,
+    // pub variables: HashMap<String, VmValue>,
+}
+
+impl Vm {
+    pub fn new(program: Vec<Instruction>, register_count: usize) -> Self {
+        Self {
+            pc: 0,
+            registers: vec![VmValue::Null; register_count],
+            program,
+            // call_stack: Vec::new(),
+            // variables: HashMap::new(),
+        }
+    }
+
+    pub fn run(&mut self) -> Result<(), VmError> {
+        while self.pc < self.program.len() {
+            let instruction = self.program[self.pc].clone();
+            self.pc += 1;
+            self.execute_instruction(instruction)?;
+        }
+        Ok(())
+    }
+
+    fn execute_instruction(&mut self, instruction: Instruction) -> Result<(), VmError> {
+        use Instruction::*;
+        let opcode_name = format!("{}", instruction);
+        match instruction {
+            LOADV { target, value } => self.set_register(target, value)?,
+            ADD { target, a, b } => {
+                self.arithmetic_binop(target, a, b, opcode_name, |a, b| a + b)?
+            }
+            SUB { target, a, b } => {
+                self.arithmetic_binop(target, a, b, opcode_name, |a, b| a - b)?
+            }
+            MUL { target, a, b } => {
+                self.arithmetic_binop(target, a, b, opcode_name, |a, b| a * b)?
+            }
+            DIV { target, a, b } => {
+                self.arithmetic_binop(target, a, b, opcode_name, |a, b| a / b)?
+            }
+            IDIV { target, a, b } => {
+                self.arithmetic_binop(target, a, b, opcode_name, |a, b| f64::floor(a / b))?
+            }
+            POW { target, a, b } => self.arithmetic_binop(target, a, b, opcode_name, |a, b| {
+                if b.fract() == 0.0 {
+                    f64::powi(a, b as i32)
+                } else {
+                    f64::powf(a, b)
+                }
+            })?,
+            MOD { target, a, b } => {
+                self.arithmetic_binop(target, a, b, opcode_name, |a, b| a % b)?
+            }
+            NEGATE { target, operand } => self.arithmetic_unop(target, operand, |v| -v)?,
+            AND { target, a, b } => self.logical_binop(target, a, b, |a, b| a && b)?,
+            OR { target, a, b } => self.logical_binop(target, a, b, |a, b| a || b)?,
+            EQ { target, a, b } => self.comparison_binop(target, a, b, |a, b| a == b)?,
+            NEQ { target, a, b } => self.comparison_binop(target, a, b, |a, b| a != b)?,
+            LT { target, a, b } => self.comparison_binop(target, a, b, |a, b| a < b)?,
+            LTE { target, a, b } => self.comparison_binop(target, a, b, |a, b| a <= b)?,
+            GT { target, a, b } => self.comparison_binop(target, a, b, |a, b| a > b)?,
+            GTE { target, a, b } => self.comparison_binop(target, a, b, |a, b| a >= b)?,
+            NOT { target, operand } => self.logical_unop(target, operand, |v| !v)?,
+            PRINT(target) => println!("{:?}", self.get_register(target)?),
+            HALT => self.pc = self.program.len(),
+        }
+        Ok(())
+    }
+
+    fn comparison_binop<F>(
+        &mut self,
+        target: usize,
+        a: usize,
+        b: usize,
+        f: F,
+    ) -> Result<(), VmError>
+    where
+        F: FnOnce(VmValue, VmValue) -> bool,
+    {
+        let a_value = self.get_register(a)?;
+        let b_value = self.get_register(b)?;
+        let result = f(a_value, b_value);
+        self.set_register(target, VmValue::Boolean(result))
+    }
+
+    fn logical_unop<F>(&mut self, target: usize, operand: usize, f: F) -> Result<(), VmError>
+    where
+        F: FnOnce(bool) -> bool,
+    {
+        let operand_value = self.get_register(operand)?;
+        let result = f(operand_value.is_truthy());
+        self.set_register(target, VmValue::Boolean(result))
+    }
+
+    fn logical_binop<F>(&mut self, target: usize, a: usize, b: usize, f: F) -> Result<(), VmError>
+    where
+        F: FnOnce(bool, bool) -> bool,
+    {
+        let a_value = self.get_register(a)?;
+        let b_value = self.get_register(b)?;
+        let result = f(a_value.is_truthy(), b_value.is_truthy());
+        self.set_register(target, VmValue::Boolean(result))
+    }
+
+    fn arithmetic_unop<F>(&mut self, target: usize, operand: usize, f: F) -> Result<(), VmError>
+    where
+        F: FnOnce(f64) -> f64,
+    {
+        let operand_value = self.get_register(operand)?;
+        if let VmValue::Int(int) = operand_value {
+            let result = f(int as f64);
+            self.set_register(target, VmValue::Int(result as i32))
+        } else if let VmValue::Float(float) = operand_value {
+            self.set_register(target, VmValue::Float(f(float)))
+        } else {
+            Err(VmError::OperandTypeMismatch {
+                expected: "number".to_string(),
+                actual: format!("{:?}", operand_value),
+            })
+        }
+    }
+
+    fn arithmetic_binop<F>(
+        &mut self,
+        target: usize,
+        a: usize,
+        b: usize,
+        opcode_name: String,
+        f: F,
+    ) -> Result<(), VmError>
+    where
+        F: FnOnce(f64, f64) -> f64,
+    {
+        let a_value = self.get_register(a)?;
+        let b_value = self.get_register(b)?;
+        let (a_number, b_number, both_int) = match (a_value, b_value) {
+            (VmValue::Int(ai), VmValue::Int(bi)) => (ai as f64, bi as f64, true),
+            (VmValue::Int(ai), VmValue::Float(bf)) => (ai as f64, bf, false),
+            (VmValue::Float(af), VmValue::Int(bi)) => (af, bi as f64, false),
+            (VmValue::Float(af), VmValue::Float(bf)) => (af, bf, false),
+            (a_other, b_other) => {
+                return Err(VmError::BinaryTypeMismatch {
+                    opcode_name,
+                    expected: "number".to_string(),
+                    a_actual: format!("{:?}", a_other),
+                    b_actual: format!("{:?}", b_other),
+                });
+            }
+        };
+
+        let result = f(a_number, b_number);
+        if opcode_name == "IDIV" || (both_int && result.fract() == 0.0) {
+            self.set_register(target, VmValue::Int(result as i32))
+        } else {
+            self.set_register(target, VmValue::Float(result))
+        }
+    }
+
+    fn get_register(&self, index: usize) -> Result<VmValue, VmError> {
+        self.registers.get(index).copied().ok_or_else(|| {
+            VmError::RegisterOutOfBounds(format!("invalid register index {}", index))
+        })
+    }
+
+    fn set_register(&mut self, index: usize, value: VmValue) -> Result<(), VmError> {
+        if let Some(reg) = self.registers.get_mut(index) {
+            *reg = value;
+            Ok(())
+        } else {
+            Err(VmError::RegisterOutOfBounds(format!(
+                "invalid register index {}",
+                index
+            )))
+        }
+    }
+
+    // fn jump(&mut self, addr: usize) -> Result<(), VmError> {
+    //     if addr >= self.program.len() {
+    //         Err(VmError::ProgramCounterOutOfBounds)
+    //     } else {
+    //         self.pc = addr;
+    //         Ok(())
+    //     }
+    // }
+}
