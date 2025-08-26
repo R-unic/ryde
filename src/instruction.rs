@@ -4,7 +4,7 @@ use bincode::{Decode, Encode};
 
 use crate::value::VmValue;
 
-#[derive(Encode, Decode, PartialEq, Debug, Clone, Copy)]
+#[derive(Encode, Decode, PartialEq, Debug, Clone)]
 pub enum Instruction {
     // /// Load a constant value from the constant pool into a register
     // LOADC {
@@ -117,6 +117,15 @@ pub enum Instruction {
     NOT {
         target: usize,
         operand: usize,
+    },
+
+    STORE {
+        source: usize,
+        name: String,
+    },
+    LOAD {
+        target: usize,
+        name: String,
     },
 
     PRINT(usize),

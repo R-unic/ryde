@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::error::vm::VmError;
 use crate::instruction::Instruction;
 use crate::serde::Program;
@@ -7,8 +9,8 @@ pub struct Vm<'a> {
     pub pc: usize,
     pub registers: Vec<VmValue>,
     pub program: &'a Program,
-    // pub call_stack: Vec<Frame>,
-    // pub variables: HashMap<String, VmValue>,
+    pub variables: HashMap<String, VmValue>, // TODO: replace with scope
+                                             // pub call_stack: Vec<Frame>,
 }
 
 impl<'a> Vm<'a> {
@@ -17,8 +19,8 @@ impl<'a> Vm<'a> {
             pc: 0,
             registers: vec![VmValue::Null; register_count],
             program,
+            variables: HashMap::new(),
             // call_stack: Vec::new(),
-            // variables: HashMap::new(),
         }
     }
 
@@ -62,6 +64,7 @@ impl<'a> Vm<'a> {
                 self.arithmetic_binop(target, a, b, opcode_name, |a, b| a % b)?
             }
             NEGATE { target, operand } => self.arithmetic_unop(target, operand, |v| -v)?,
+
             AND { target, a, b } => self.logical_binop(target, a, b, |a, b| a && b)?,
             OR { target, a, b } => self.logical_binop(target, a, b, |a, b| a || b)?,
             EQ { target, a, b } => self.comparison_binop(target, a, b, |a, b| a == b)?,
@@ -71,6 +74,19 @@ impl<'a> Vm<'a> {
             GT { target, a, b } => self.comparison_binop(target, a, b, |a, b| a > b)?,
             GTE { target, a, b } => self.comparison_binop(target, a, b, |a, b| a >= b)?,
             NOT { target, operand } => self.logical_unop(target, operand, |v| !v)?,
+
+            STORE { source, name } => {
+                self.variables.insert(name, self.get_register(source)?);
+            }
+            LOAD { target, name } => {
+                let value = self
+                    .variables
+                    .get(&name)
+                    .expect(format!("variable {} not found in local scope", name).as_str());
+
+                self.set_register(target, *value)?
+            }
+
             PRINT(target) => println!("{:?}", self.get_register(target)?),
             HALT => self.pc = self.instruction_count(),
         }
@@ -194,7 +210,7 @@ impl<'a> Vm<'a> {
     // }
 
     fn current_instruction(&self) -> Instruction {
-        self.program.instructions[self.pc]
+        self.program.instructions[self.pc].clone()
     }
 
     fn instruction_count(&self) -> usize {

@@ -2,6 +2,7 @@ use crate::{instruction::Instruction, value::VmValue};
 use bincode::{
     Decode, Encode,
     config::{self, Configuration},
+    error::DecodeError,
 };
 
 pub mod deserializer;
@@ -16,6 +17,12 @@ pub struct Program {
     pub version: u8,
     pub constant_pool: Vec<VmValue>,
     pub instructions: Vec<Instruction>,
+}
+
+#[derive(Debug)]
+pub enum ProgramError {
+    FileError(std::io::Error),
+    DecodeError(DecodeError),
 }
 
 impl Program {
@@ -33,5 +40,10 @@ impl Program {
             instructions,
             constant_pool: Vec::new(),
         }
+    }
+
+    pub fn from_file(path: &str) -> Result<Program, ProgramError> {
+        let binary = std::fs::read(path).map_err(ProgramError::FileError)?;
+        deserializer::deserialize(binary).map_err(ProgramError::DecodeError)
     }
 }
