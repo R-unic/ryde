@@ -75,6 +75,17 @@ impl<'a> Vm<'a> {
             GTE { target, a, b } => self.comparison_binop(target, a, b, |a, b| a >= b)?,
             NOT { target, operand } => self.logical_unop(target, operand, |v| !v)?,
 
+            JMP { address } => self.jump(address)?,
+            JZ { source, address } => {
+                if !self.get_register(source)?.is_truthy() {
+                    self.jump(address)?
+                }
+            }
+            JNZ { source, address } => {
+                if self.get_register(source)?.is_truthy() {
+                    self.jump(address)?
+                }
+            }
             STORE { source, name } => {
                 self.variables.insert(name, self.get_register(source)?);
             }
@@ -200,14 +211,14 @@ impl<'a> Vm<'a> {
         }
     }
 
-    // fn jump(&mut self, addr: usize) -> Result<(), VmError> {
-    //     if addr >= self.program.len() {
-    //         Err(VmError::ProgramCounterOutOfBounds)
-    //     } else {
-    //         self.pc = addr;
-    //         Ok(())
-    //     }
-    // }
+    fn jump(&mut self, address: usize) -> Result<(), VmError> {
+        if address >= self.instruction_count() {
+            Err(VmError::ProgramCounterOutOfBounds)
+        } else {
+            self.pc = address;
+            Ok(())
+        }
+    }
 
     fn current_instruction(&self) -> Instruction {
         self.program.instructions[self.pc].clone()

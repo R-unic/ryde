@@ -119,6 +119,17 @@ pub enum Instruction {
         operand: usize,
     },
 
+    JMP {
+        address: usize,
+    },
+    JZ {
+        source: usize,
+        address: usize,
+    },
+    JNZ {
+        source: usize,
+        address: usize,
+    },
     STORE {
         source: usize,
         name: String,
