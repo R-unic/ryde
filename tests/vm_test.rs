@@ -12,7 +12,7 @@ fn test_loadv() -> () {
         Instruction::HALT,
     ]);
 
-    let mut vm = Vm::new(program, 4);
+    let mut vm = Vm::new(&program, 4);
     vm.run().unwrap();
 
     assert_eq!(vm.registers[0], VmValue::Int(420));
@@ -37,7 +37,7 @@ fn test_add() -> () {
         Instruction::HALT,
     ]);
 
-    let mut vm = Vm::new(program, 4);
+    let mut vm = Vm::new(&program, 4);
     vm.run().unwrap();
 
     assert_eq!(vm.registers[0], VmValue::Int(25));
@@ -62,7 +62,7 @@ fn test_sub() -> () {
         Instruction::HALT,
     ]);
 
-    let mut vm = Vm::new(program, 4);
+    let mut vm = Vm::new(&program, 4);
     vm.run().unwrap();
 
     assert_eq!(vm.registers[0], VmValue::Int(42));
@@ -87,7 +87,7 @@ fn test_mul() -> () {
         Instruction::HALT,
     ]);
 
-    let mut vm = Vm::new(program, 4);
+    let mut vm = Vm::new(&program, 4);
     vm.run().unwrap();
 
     assert_eq!(vm.registers[0], VmValue::Int(69));
@@ -112,7 +112,7 @@ fn test_div() -> () {
         Instruction::HALT,
     ]);
 
-    let mut vm = Vm::new(program, 4);
+    let mut vm = Vm::new(&program, 4);
     vm.run().unwrap();
 
     assert_eq!(vm.registers[0], VmValue::Int(69));
@@ -132,7 +132,7 @@ fn test_halt() -> () {
         },
     ]);
 
-    let mut vm = Vm::new(program, 4);
+    let mut vm = Vm::new(&program, 4);
     vm.run().unwrap();
 
     assert_eq!(vm.registers[0], VmValue::Boolean(true));
@@ -148,7 +148,7 @@ fn test_invalid_register() -> () {
         Instruction::HALT,
     ]);
 
-    let mut vm = Vm::new(program, 4);
+    let mut vm = Vm::new(&program, 4);
     let result = vm.run();
 
     assert!(matches!(result, Err(VmError::RegisterOutOfBounds(_))));
