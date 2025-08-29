@@ -201,6 +201,35 @@ fn test_conditional_jump_not_taken() -> () {
 }
 
 #[test]
+fn test_store_and_load() -> () {
+    let program = Program::from_instructions(vec![
+        Instruction::LOADV {
+            target: 0,
+            value: VmValue::Int(123),
+        },
+        Instruction::STORE {
+            source: 0,
+            name: "x".to_string(),
+        },
+        Instruction::LOADV {
+            target: 0,
+            value: VmValue::Int(0),
+        },
+        Instruction::LOAD {
+            target: 1,
+            name: "x".to_string(),
+        },
+        Instruction::HALT,
+    ]);
+
+    let mut vm = Vm::new(&program, 4);
+    vm.run().unwrap();
+
+    assert_eq!(vm.registers[1], VmValue::Int(123));
+    assert_eq!(vm.variables.get("x"), Some(&VmValue::Int(123)));
+}
+
+#[test]
 fn test_halt() -> () {
     let program = Program::from_instructions(vec![
         Instruction::LOADV {
