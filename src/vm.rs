@@ -75,14 +75,16 @@ impl<'a> Vm<'a> {
             GTE { target, a, b } => self.comparison_binop(target, a, b, |a, b| a >= b)?,
             NOT { target, operand } => self.logical_unop(target, operand, |v| !v)?,
 
-            JMP { address } => self.jump(address)?,
+            JMP(address) => self.jump(address)?,
             JZ { source, address } => {
-                if !self.get_register(source)?.is_truthy() {
+                let source_value = self.get_register(source)?;
+                if !source_value.is_truthy() {
                     self.jump(address)?
                 }
             }
             JNZ { source, address } => {
-                if self.get_register(source)?.is_truthy() {
+                let source_value = self.get_register(source)?;
+                if source_value.is_truthy() {
                     self.jump(address)?
                 }
             }

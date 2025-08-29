@@ -9,25 +9,39 @@ fn main() {
     let instructions: Vec<Instruction> = vec![
         Instruction::LOADV {
             target: 0,
-            value: VmValue::Int(1),
+            value: VmValue::Int(10),
         },
         Instruction::STORE {
             source: 0,
             name: "x".to_string(),
         },
         Instruction::LOAD {
-            target: 1,
+            target: 0,
             name: "x".to_string(),
         },
-        Instruction::STORE {
-            source: 1,
-            name: "y".to_string(),
+        Instruction::LOADV {
+            target: 1,
+            value: VmValue::Int(10),
         },
-        Instruction::LOAD {
-            target: 2,
-            name: "y".to_string(),
+        Instruction::EQ {
+            target: 0,
+            a: 0,
+            b: 1,
         },
-        Instruction::PRINT(2),
+        Instruction::JZ {
+            source: 0,
+            address: 8,
+        },
+        Instruction::LOADV {
+            target: 0,
+            value: VmValue::Int(69),
+        },
+        Instruction::JMP(9),
+        Instruction::LOADV {
+            target: 0,
+            value: VmValue::Int(420),
+        },
+        Instruction::PRINT(0),
         Instruction::HALT,
     ];
 

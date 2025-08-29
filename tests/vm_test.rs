@@ -119,6 +119,88 @@ fn test_div() -> () {
 }
 
 #[test]
+fn test_jump() -> () {
+    let program = Program::from_instructions(vec![
+        Instruction::LOADV {
+            target: 0,
+            value: VmValue::Int(-69),
+        },
+        Instruction::JMP(3),
+        Instruction::LOADV {
+            target: 0,
+            value: VmValue::Int(999),
+        },
+        Instruction::LOADV {
+            target: 1,
+            value: VmValue::Int(420),
+        },
+        Instruction::HALT,
+    ]);
+
+    let mut vm = Vm::new(&program, 4);
+    vm.run().unwrap();
+
+    assert_eq!(vm.registers[0], VmValue::Int(-69));
+    assert_eq!(vm.registers[1], VmValue::Int(420));
+}
+
+#[test]
+fn test_conditional_jump_taken() -> () {
+    let program = Program::from_instructions(vec![
+        Instruction::LOADV {
+            target: 0,
+            value: VmValue::Boolean(false),
+        },
+        Instruction::JZ {
+            source: 0,
+            address: 3,
+        },
+        Instruction::LOADV {
+            target: 1,
+            value: VmValue::Int(999),
+        },
+        Instruction::LOADV {
+            target: 1,
+            value: VmValue::Int(420),
+        },
+        Instruction::HALT,
+    ]);
+
+    let mut vm = Vm::new(&program, 4);
+    vm.run().unwrap();
+
+    assert_eq!(vm.registers[1], VmValue::Int(420));
+}
+
+#[test]
+fn test_conditional_jump_not_taken() -> () {
+    let program = Program::from_instructions(vec![
+        Instruction::LOADV {
+            target: 0,
+            value: VmValue::Boolean(true),
+        },
+        Instruction::JZ {
+            source: 0,
+            address: 4,
+        },
+        Instruction::LOADV {
+            target: 1,
+            value: VmValue::Int(999),
+        },
+        Instruction::LOADV {
+            target: 1,
+            value: VmValue::Int(420),
+        },
+        Instruction::HALT,
+    ]);
+
+    let mut vm = Vm::new(&program, 4);
+    vm.run().unwrap();
+
+    assert_eq!(vm.registers[1], VmValue::Int(420));
+}
+
+#[test]
 fn test_halt() -> () {
     let program = Program::from_instructions(vec![
         Instruction::LOADV {

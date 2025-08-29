@@ -119,9 +119,7 @@ pub enum Instruction {
         operand: usize,
     },
 
-    JMP {
-        address: usize,
-    },
+    JMP(usize),
     JZ {
         source: usize,
         address: usize,
