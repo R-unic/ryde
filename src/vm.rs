@@ -9,7 +9,7 @@ pub struct Vm<'a> {
     pub pc: usize,
     pub registers: Vec<VmValue>,
     pub program: &'a Program,
-    pub variables: HashMap<String, VmValue>, // TODO: replace with scope
+    pub variables: HashMap<String, VmValue>, // TODO: scoping
     pub call_stack: Vec<Frame>,
 }
 
@@ -124,12 +124,12 @@ impl<'a> Vm<'a> {
                     .get(&name)
                     .expect(format!("variable {} not found in local scope", name).as_str());
 
-                self.set_register(target, *value)?
+                self.set_register(target, value.clone())?
             }
             CALL(address) => self.call(address)?,
             RETURN => self.call_return()?,
 
-            PRINT(target) => println!("{:?}", self.get_register(target)?),
+            PRINT(target) => println!("{}", self.get_register(target)?),
             HALT => self.pc = self.instruction_count(),
         }
         Ok(())
@@ -225,7 +225,7 @@ impl<'a> Vm<'a> {
     }
 
     fn get_register(&self, index: usize) -> Result<VmValue, VmError> {
-        self.registers.get(index).copied().ok_or_else(|| {
+        self.registers.get(index).cloned().ok_or_else(|| {
             VmError::RegisterOutOfBounds(format!("invalid register index {}", index))
         })
     }
