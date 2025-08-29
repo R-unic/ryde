@@ -201,6 +201,15 @@ fn test_conditional_jump_not_taken() -> () {
 }
 
 #[test]
+fn test_jump_out_of_bounds() -> () {
+    let program = Program::from_instructions(vec![Instruction::JMP(100), Instruction::HALT]);
+    let mut vm = Vm::new(&program, 4);
+    let result = vm.run();
+
+    assert!(matches!(result, Err(VmError::ProgramCounterOutOfBounds)));
+}
+
+#[test]
 fn test_store_and_load() -> () {
     let program = Program::from_instructions(vec![
         Instruction::LOADV {
