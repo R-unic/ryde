@@ -239,6 +239,63 @@ fn test_store_and_load() -> () {
 }
 
 #[test]
+fn test_call_and_return() {
+    let program = Program::from_instructions(vec![
+        Instruction::LOADV {
+            target: 0,
+            value: VmValue::Int(10),
+        },
+        Instruction::CALL(4),
+        Instruction::LOADV {
+            target: 1,
+            value: VmValue::Int(420),
+        },
+        Instruction::HALT,
+        Instruction::LOADV {
+            target: 2,
+            value: VmValue::Int(100),
+        },
+        Instruction::RETURN,
+    ]);
+
+    let mut vm = Vm::new(&program, 4);
+    vm.run().unwrap();
+
+    assert_eq!(vm.registers[0], VmValue::Int(10));
+    assert_eq!(vm.registers[1], VmValue::Int(420));
+    assert_eq!(vm.registers[2], VmValue::Int(100));
+    assert_eq!(vm.call_stack.len(), 0);
+}
+
+#[test]
+fn test_return_without_call() {
+    let program = Program::from_instructions(vec![Instruction::RETURN, Instruction::HALT]);
+    let mut vm = Vm::new(&program, 4);
+    let result = vm.run();
+
+    assert!(matches!(result, Err(VmError::CallStackEmpty)));
+}
+
+#[test]
+fn test_visualize_callstack() {
+    let program = Program::from_instructions(vec![
+        Instruction::CALL(2),
+        Instruction::HALT,
+        Instruction::LOADV {
+            target: 0,
+            value: VmValue::Int(420),
+        },
+        Instruction::HALT,
+    ]);
+
+    let mut vm = Vm::new(&program, 4);
+    vm.run().unwrap();
+
+    let callstack_vis = vm.visualize_callstack();
+    assert!(callstack_vis.contains("return address"));
+}
+
+#[test]
 fn test_halt() -> () {
     let program = Program::from_instructions(vec![
         Instruction::LOADV {
