@@ -10,7 +10,18 @@ pub struct Vm<'a> {
     pub registers: Vec<VmValue>,
     pub program: &'a Program,
     pub variables: HashMap<String, VmValue>, // TODO: replace with scope
-                                             // pub call_stack: Vec<Frame>,
+    pub call_stack: Vec<Frame>,
+}
+
+#[derive(Debug)]
+pub struct Frame {
+    return_address: usize,
+}
+
+impl Frame {
+    pub fn new(return_address: usize) -> Self {
+        Self { return_address }
+    }
 }
 
 impl<'a> Vm<'a> {
@@ -20,7 +31,7 @@ impl<'a> Vm<'a> {
             registers: vec![VmValue::Null; register_count],
             program,
             variables: HashMap::new(),
-            // call_stack: Vec::new(),
+            call_stack: Vec::new(),
         }
     }
 
@@ -31,6 +42,22 @@ impl<'a> Vm<'a> {
             self.execute_instruction(instruction)?;
         }
         Ok(())
+    }
+
+    #[cfg(debug_assertions)]
+    pub fn visualize_callstack(&self) -> String {
+        if self.call_stack.is_empty() {
+            "(empty call stack)".to_string()
+        } else {
+            let mut s = String::from("call stack:\n");
+            for (i, frame) in self.call_stack.iter().rev().enumerate() {
+                s.push_str(&format!(
+                    "  frame {}: return address -> {}\n",
+                    i, frame.return_address
+                ));
+            }
+            s
+        }
     }
 
     fn execute_instruction(&mut self, instruction: Instruction) -> Result<(), VmError> {
@@ -99,6 +126,8 @@ impl<'a> Vm<'a> {
 
                 self.set_register(target, *value)?
             }
+            CALL(address) => self.call(address)?,
+            RETURN => self.call_return()?,
 
             PRINT(target) => println!("{:?}", self.get_register(target)?),
             HALT => self.pc = self.instruction_count(),
@@ -220,6 +249,22 @@ impl<'a> Vm<'a> {
             self.pc = address;
             Ok(())
         }
+    }
+
+    fn call(&mut self, address: usize) -> Result<(), VmError> {
+        if address >= self.instruction_count() {
+            return Err(VmError::ProgramCounterOutOfBounds);
+        }
+
+        self.call_stack.push(Frame::new(self.pc));
+        self.pc = address;
+        Ok(())
+    }
+
+    fn call_return(&mut self) -> Result<(), VmError> {
+        let frame = self.call_stack.pop().ok_or(VmError::CallStackEmpty)?;
+        self.pc = frame.return_address;
+        Ok(())
     }
 
     fn current_instruction(&self) -> Instruction {

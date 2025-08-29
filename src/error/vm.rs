@@ -1,4 +1,4 @@
-use std::fmt;
+use std::{error::Error, fmt};
 
 #[derive(Debug)]
 pub enum VmError {
@@ -43,3 +43,5 @@ impl fmt::Display for VmError {
         }
     }
 }
+
+impl Error for VmError {}
