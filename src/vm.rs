@@ -101,6 +101,36 @@ impl<'a> Vm<'a> {
             GT { target, a, b } => self.comparison_binop(target, a, b, |a, b| a > b)?,
             GTE { target, a, b } => self.comparison_binop(target, a, b, |a, b| a >= b)?,
             NOT { target, operand } => self.logical_unop(target, operand, |v| !v)?,
+            INC { target, name } => {
+                let value = self.lookup_variable(&name);
+                if let VmValue::Int(n) = value {
+                    let value = VmValue::Int(n + 1);
+                    self.set_variable(name, value.clone());
+                    if let Some(target) = target {
+                        self.set_register(target, value)?;
+                    }
+                } else {
+                    return Err(VmError::OperandTypeMismatch {
+                        expected: "number".to_string(),
+                        actual: format!("{:?}", value),
+                    });
+                }
+            }
+            DEC { target, name } => {
+                let value = self.lookup_variable(&name);
+                if let VmValue::Int(n) = value {
+                    let value = VmValue::Int(n - 1);
+                    self.set_variable(name, value.clone());
+                    if let Some(target) = target {
+                        self.set_register(target, value)?;
+                    }
+                } else {
+                    return Err(VmError::OperandTypeMismatch {
+                        expected: "number".to_string(),
+                        actual: format!("{:?}", value),
+                    });
+                }
+            }
 
             JMP(address) => self.jump(address)?,
             JZ { source, address } => {
@@ -116,14 +146,10 @@ impl<'a> Vm<'a> {
                 }
             }
             STORE { source, name } => {
-                self.variables.insert(name, self.get_register(source)?);
+                self.set_variable(name, self.get_register(source)?);
             }
             LOAD { target, name } => {
-                let value = self
-                    .variables
-                    .get(&name)
-                    .expect(format!("variable {} not found in local scope", name).as_str());
-
+                let value = self.lookup_variable(&name);
                 self.set_register(target, value.clone())?
             }
             CALL(address) => self.call(address)?,
@@ -133,6 +159,16 @@ impl<'a> Vm<'a> {
             HALT => self.pc = self.instruction_count(),
         }
         Ok(())
+    }
+
+    fn set_variable(&mut self, name: String, value: VmValue) -> Option<VmValue> {
+        self.variables.insert(name, value)
+    }
+
+    fn lookup_variable(&self, name: &str) -> &VmValue {
+        self.variables
+            .get(name)
+            .expect(format!("variable {} not found in local scope", name).as_str())
     }
 
     fn comparison_binop<F>(

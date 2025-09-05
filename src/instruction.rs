@@ -49,6 +49,10 @@ pub enum Instruction {
     GTE { target: usize, a: usize, b: usize },
     /// target = !operand
     NOT { target: usize, operand: usize },
+    /// Increment variable `name` by 1, and store the result in `target` if specified
+    INC { target: Option<usize>, name: String },
+    /// Decrement variable `name` by 1, and store the result in `target` if specified
+    DEC { target: Option<usize>, name: String },
 
     /// Jump to instruction at the specified address
     JMP(usize),
@@ -59,10 +63,8 @@ pub enum Instruction {
 
     /// Store the value of register `target` into variable `name`
     STORE { source: usize, name: String },
-
     /// Load the value of variable `name` into register `target`
     LOAD { target: usize, name: String },
-
     /// Call a subroutine at the specified instruction
     CALL(usize),
     /// Return from a subroutine
