@@ -6,23 +6,19 @@ use ryde::{
 };
 
 fn main() {
-    let var_name = "x";
     let instructions: Vec<Instruction> = vec![
         Instruction::LOADV {
             target: 0,
-            value: VmValue::Int(68),
+            value: VmValue::Array(Box::new(vec![
+                VmValue::Int(420),
+                VmValue::Int(69),
+                VmValue::Int(1337),
+            ])),
         },
-        Instruction::STORE {
-            source: 0,
-            name: var_name.to_string(),
-        },
-        Instruction::INC {
-            target: None,
-            name: var_name.to_string(),
-        },
-        Instruction::LOAD {
+        Instruction::INDEXK {
             target: 0,
-            name: var_name.to_string(),
+            object: 0,
+            index: 2,
         },
         Instruction::PRINT(0),
         Instruction::HALT,

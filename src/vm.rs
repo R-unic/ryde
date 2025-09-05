@@ -131,6 +131,37 @@ impl<'a> Vm<'a> {
                     });
                 }
             }
+            INDEX {
+                target,
+                object,
+                index,
+            } => {
+                let object_value = self.get_register(object)?;
+                let index_value = self.get_register(index)?;
+                if let VmValue::Array(arr) = object_value {
+                    if let VmValue::Int(i) = index_value {
+                        let value = arr[i as usize].clone();
+                        self.set_register(target, value)?;
+                    } else {
+                        return Err(VmError::InvalidIndexType(format!("{:?}", index_value)));
+                    }
+                } else {
+                    return Err(VmError::AttemptToIndex(format!("{:?}", object_value)));
+                }
+            }
+            INDEXK {
+                target,
+                object,
+                index,
+            } => {
+                let object_value = self.get_register(object)?;
+                if let VmValue::Array(arr) = object_value {
+                    let value = arr[index].clone();
+                    self.set_register(target, value)?;
+                } else {
+                    return Err(VmError::AttemptToIndex(format!("{:?}", object_value)));
+                }
+            }
 
             JMP(address) => self.jump(address)?,
             JZ { source, address } => {

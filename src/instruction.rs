@@ -53,6 +53,18 @@ pub enum Instruction {
     INC { target: Option<usize>, name: String },
     /// Decrement variable `name` by 1, and store the result in `target` if specified
     DEC { target: Option<usize>, name: String },
+    /// target = object[index]
+    INDEX {
+        target: usize,
+        object: usize,
+        index: usize, // register
+    },
+    /// target = object[index]
+    INDEXK {
+        target: usize,
+        object: usize,
+        index: usize, // constant
+    },
 
     /// Jump to instruction at the specified address
     JMP(usize),

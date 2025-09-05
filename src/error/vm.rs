@@ -5,6 +5,8 @@ pub enum VmError {
     RegisterOutOfBounds(String),
     ProgramCounterOutOfBounds,
     CallStackEmpty,
+    AttemptToIndex(String),
+    InvalidIndexType(String),
     OperandTypeMismatch {
         expected: String,
         actual: String,
@@ -24,6 +26,8 @@ impl fmt::Display for VmError {
             VmError::RegisterOutOfBounds(msg) => write!(f, "Register error: {}", msg),
             VmError::ProgramCounterOutOfBounds => write!(f, "Program counter out of bounds"),
             VmError::CallStackEmpty => write!(f, "Call stack is empty, cannot return"),
+            VmError::AttemptToIndex(actual) => write!(f, "Attempt to index '{}'", actual),
+            VmError::InvalidIndexType(actual) => write!(f, "Invalid index type, got '{}'", actual),
             VmError::OperandTypeMismatch { expected, actual } => {
                 write!(f, "Expected type '{}', got '{}'", expected, actual)
             }

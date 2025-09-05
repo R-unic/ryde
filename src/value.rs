@@ -9,6 +9,7 @@ pub enum VmValue {
     Int(i32),
     String(Vec<u8>),
     Boolean(bool),
+    Array(Box<Vec<VmValue>>),
     Null,
 }
 
@@ -33,6 +34,16 @@ impl fmt::Display for VmValue {
                 "{}",
                 String::from_utf8(bytes.to_vec()).expect("failed to convert bytes into string")
             ),
+            VmValue::Array(v) => {
+                write!(f, "[")?;
+                for (i, value) in v.iter().enumerate() {
+                    write!(f, "{}", value)?;
+                    if i < v.len() - 1 {
+                        write!(f, ", ")?;
+                    }
+                }
+                write!(f, "]")
+            }
             VmValue::Null => write!(f, "null"),
         }
     }
