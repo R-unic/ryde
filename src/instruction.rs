@@ -53,15 +53,27 @@ pub enum Instruction {
     INC { target: Option<usize>, name: String },
     /// Decrement variable `name` by 1, and store the result in `target` if specified
     DEC { target: Option<usize>, name: String },
-    /// target = object[index]
+    /// target = object[index] -- register index
     INDEX {
         target: usize,
         object: usize,
         index: usize, // register
     },
-    /// target = object[index]
+    /// target = object[index] -- constant index
     INDEXK {
         target: usize,
+        object: usize,
+        index: usize, // constant
+    },
+    /// object[index] = source -- register index
+    STOREINDEX {
+        source: usize,
+        object: usize,
+        index: usize, // register
+    },
+    /// object[index] = source -- constant index
+    STOREINDEXK {
+        source: usize,
         object: usize,
         index: usize, // constant
     },

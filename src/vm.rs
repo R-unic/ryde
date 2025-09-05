@@ -64,7 +64,7 @@ impl<'a> Vm<'a> {
         use Instruction::*;
         let opcode_name = format!("{}", instruction);
         match instruction {
-            LOADV { target, value } => self.set_register(target, value)?,
+            LOADV { target, value } => self.set_register(target, &value)?,
             ADD { target, a, b } => {
                 self.arithmetic_binop(target, a, b, opcode_name, |a, b| a + b)?
             }
@@ -105,9 +105,9 @@ impl<'a> Vm<'a> {
                 let value = self.lookup_variable(&name);
                 if let VmValue::Int(n) = value {
                     let value = VmValue::Int(n + 1);
-                    self.set_variable(name, value.clone());
+                    self.set_variable(name, &value);
                     if let Some(target) = target {
-                        self.set_register(target, value)?;
+                        self.set_register(target, &value)?;
                     }
                 } else {
                     return Err(VmError::OperandTypeMismatch {
@@ -120,9 +120,9 @@ impl<'a> Vm<'a> {
                 let value = self.lookup_variable(&name);
                 if let VmValue::Int(n) = value {
                     let value = VmValue::Int(n - 1);
-                    self.set_variable(name, value.clone());
+                    self.set_variable(name, &value);
                     if let Some(target) = target {
-                        self.set_register(target, value)?;
+                        self.set_register(target, &value)?;
                     }
                 } else {
                     return Err(VmError::OperandTypeMismatch {
@@ -140,8 +140,8 @@ impl<'a> Vm<'a> {
                 let index_value = self.get_register(index)?;
                 if let VmValue::Array(arr) = object_value {
                     if let VmValue::Int(i) = index_value {
-                        let value = arr[i as usize].clone();
-                        self.set_register(target, value)?;
+                        let value = arr[*i as usize].clone();
+                        self.set_register(target, &value)?;
                     } else {
                         return Err(VmError::InvalidIndexType(format!("{:?}", index_value)));
                     }
@@ -157,7 +157,40 @@ impl<'a> Vm<'a> {
                 let object_value = self.get_register(object)?;
                 if let VmValue::Array(arr) = object_value {
                     let value = arr[index].clone();
-                    self.set_register(target, value)?;
+                    self.set_register(target, &value)?;
+                } else {
+                    return Err(VmError::AttemptToIndex(format!("{:?}", object_value)));
+                }
+            }
+            STOREINDEX {
+                source,
+                object,
+                index,
+            } => {
+                let object_value = self.get_register(object)?;
+                let index_value = self.get_register(index)?;
+                let source_value = self.get_register(source)?;
+                if let VmValue::Array(mut arr) = object_value.clone() {
+                    if let VmValue::Int(i) = index_value {
+                        arr[*i as usize] = source_value.clone();
+                        self.set_register(object, &VmValue::Array(arr))?;
+                    } else {
+                        return Err(VmError::InvalidIndexType(format!("{:?}", index_value)));
+                    }
+                } else {
+                    return Err(VmError::AttemptToIndex(format!("{:?}", object_value)));
+                }
+            }
+            STOREINDEXK {
+                source,
+                object,
+                index,
+            } => {
+                let object_value = self.get_register(object)?;
+                let source_value = self.get_register(source)?;
+                if let VmValue::Array(mut arr) = object_value.clone() {
+                    arr[index] = source_value.clone();
+                    self.set_register(object, &VmValue::Array(arr))?;
                 } else {
                     return Err(VmError::AttemptToIndex(format!("{:?}", object_value)));
                 }
@@ -177,11 +210,11 @@ impl<'a> Vm<'a> {
                 }
             }
             STORE { source, name } => {
-                self.set_variable(name, self.get_register(source)?);
+                self.set_variable(name, &self.get_register(source)?.clone());
             }
             LOAD { target, name } => {
                 let value = self.lookup_variable(&name);
-                self.set_register(target, value.clone())?
+                self.set_register(target, &value.clone())?
             }
             CALL(address) => self.call(address)?,
             RETURN => self.call_return()?,
@@ -192,8 +225,8 @@ impl<'a> Vm<'a> {
         Ok(())
     }
 
-    fn set_variable(&mut self, name: String, value: VmValue) -> Option<VmValue> {
-        self.variables.insert(name, value)
+    fn set_variable(&mut self, name: String, value: &VmValue) -> Option<VmValue> {
+        self.variables.insert(name, value.clone())
     }
 
     fn lookup_variable(&self, name: &str) -> &VmValue {
@@ -210,12 +243,12 @@ impl<'a> Vm<'a> {
         f: F,
     ) -> Result<(), VmError>
     where
-        F: FnOnce(VmValue, VmValue) -> bool,
+        F: FnOnce(&VmValue, &VmValue) -> bool,
     {
         let a_value = self.get_register(a)?;
         let b_value = self.get_register(b)?;
         let result = f(a_value, b_value);
-        self.set_register(target, VmValue::Boolean(result))
+        self.set_register(target, &VmValue::Boolean(result))
     }
 
     fn logical_unop<F>(&mut self, target: usize, operand: usize, f: F) -> Result<(), VmError>
@@ -224,7 +257,7 @@ impl<'a> Vm<'a> {
     {
         let operand_value = self.get_register(operand)?;
         let result = f(operand_value.is_truthy());
-        self.set_register(target, VmValue::Boolean(result))
+        self.set_register(target, &VmValue::Boolean(result))
     }
 
     fn logical_binop<F>(&mut self, target: usize, a: usize, b: usize, f: F) -> Result<(), VmError>
@@ -234,7 +267,7 @@ impl<'a> Vm<'a> {
         let a_value = self.get_register(a)?;
         let b_value = self.get_register(b)?;
         let result = f(a_value.is_truthy(), b_value.is_truthy());
-        self.set_register(target, VmValue::Boolean(result))
+        self.set_register(target, &VmValue::Boolean(result))
     }
 
     fn arithmetic_unop<F>(&mut self, target: usize, operand: usize, f: F) -> Result<(), VmError>
@@ -243,10 +276,10 @@ impl<'a> Vm<'a> {
     {
         let operand_value = self.get_register(operand)?;
         if let VmValue::Int(int) = operand_value {
-            let result = f(int as f64);
-            self.set_register(target, VmValue::Int(result as i32))
+            let result = f(*int as f64);
+            self.set_register(target, &VmValue::Int(result as i32))
         } else if let VmValue::Float(float) = operand_value {
-            self.set_register(target, VmValue::Float(f(float)))
+            self.set_register(target, &VmValue::Float(f(*float)))
         } else {
             Err(VmError::OperandTypeMismatch {
                 expected: "number".to_string(),
@@ -269,10 +302,10 @@ impl<'a> Vm<'a> {
         let a_value = self.get_register(a)?;
         let b_value = self.get_register(b)?;
         let (a_number, b_number, both_int) = match (a_value, b_value) {
-            (VmValue::Int(ai), VmValue::Int(bi)) => (ai as f64, bi as f64, true),
-            (VmValue::Int(ai), VmValue::Float(bf)) => (ai as f64, bf, false),
-            (VmValue::Float(af), VmValue::Int(bi)) => (af, bi as f64, false),
-            (VmValue::Float(af), VmValue::Float(bf)) => (af, bf, false),
+            (VmValue::Int(ai), VmValue::Int(bi)) => (*ai as f64, *bi as f64, true),
+            (VmValue::Int(ai), VmValue::Float(bf)) => (*ai as f64, *bf, false),
+            (VmValue::Float(af), VmValue::Int(bi)) => (*af, *bi as f64, false),
+            (VmValue::Float(af), VmValue::Float(bf)) => (*af, *bf, false),
             (a_other, b_other) => {
                 return Err(VmError::BinaryTypeMismatch {
                     opcode_name,
@@ -285,21 +318,21 @@ impl<'a> Vm<'a> {
 
         let result = f(a_number, b_number);
         if opcode_name == "IDIV" || (both_int && result.fract() == 0.0) {
-            self.set_register(target, VmValue::Int(result as i32))
+            self.set_register(target, &VmValue::Int(result as i32))
         } else {
-            self.set_register(target, VmValue::Float(result))
+            self.set_register(target, &VmValue::Float(result))
         }
     }
 
-    fn get_register(&self, index: usize) -> Result<VmValue, VmError> {
-        self.registers.get(index).cloned().ok_or_else(|| {
+    fn get_register(&self, index: usize) -> Result<&VmValue, VmError> {
+        self.registers.get(index).ok_or_else(|| {
             VmError::RegisterOutOfBounds(format!("invalid register index {}", index))
         })
     }
 
-    fn set_register(&mut self, index: usize, value: VmValue) -> Result<(), VmError> {
+    fn set_register(&mut self, index: usize, value: &VmValue) -> Result<(), VmError> {
         if let Some(reg) = self.registers.get_mut(index) {
-            *reg = value;
+            *reg = value.clone();
             Ok(())
         } else {
             Err(VmError::RegisterOutOfBounds(format!(

@@ -16,11 +16,26 @@ fn main() {
             ])),
         },
         Instruction::INDEXK {
-            target: 0,
+            target: 1,
             object: 0,
             index: 2,
         },
-        Instruction::PRINT(0),
+        Instruction::PRINT(1),
+        Instruction::LOADV {
+            target: 1,
+            value: VmValue::String("balls".into()),
+        },
+        Instruction::STOREINDEXK {
+            source: 1,
+            object: 0,
+            index: 2,
+        },
+        Instruction::INDEXK {
+            target: 1,
+            object: 0,
+            index: 2,
+        },
+        Instruction::PRINT(1),
         Instruction::HALT,
     ];
 
