@@ -2,7 +2,8 @@ use std::{error::Error, fmt};
 
 #[derive(Debug)]
 pub enum VmError {
-    RegisterOutOfBounds(String),
+    RegisterOutOfBounds(usize),
+    VariableNotFound(String),
     ProgramCounterOutOfBounds,
     CallStackEmpty,
     AttemptToIndex(String),
@@ -17,13 +18,15 @@ pub enum VmError {
         a_actual: String,
         b_actual: String,
     },
-    VariableNotFound(String),
 }
 
 impl fmt::Display for VmError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            VmError::RegisterOutOfBounds(msg) => write!(f, "Register error: {}", msg),
+            VmError::RegisterOutOfBounds(index) => write!(f, "Invalid register index: {}", index),
+            VmError::VariableNotFound(name) => {
+                write!(f, "Variable '{}' not found in local scope", name)
+            }
             VmError::ProgramCounterOutOfBounds => write!(f, "Program counter out of bounds"),
             VmError::CallStackEmpty => write!(f, "Call stack is empty, cannot return"),
             VmError::AttemptToIndex(actual) => write!(f, "Attempt to index '{}'", actual),
@@ -43,7 +46,6 @@ impl fmt::Display for VmError {
                     expected, opcode_name, a_actual, opcode_name, b_actual
                 )
             }
-            VmError::VariableNotFound(name) => write!(f, "Variable '{}' not found", name),
         }
     }
 }

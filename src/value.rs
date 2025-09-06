@@ -1,7 +1,9 @@
 use core::fmt;
-use std::cmp::Ordering;
+use std::{cmp::Ordering, ops::DerefMut};
 
 use bincode::{Decode, Encode};
+
+use crate::error::vm::VmError;
 
 #[derive(Encode, Decode, Debug, Clone)]
 pub enum VmValue {
@@ -19,6 +21,20 @@ impl VmValue {
             VmValue::Boolean(v) => *v,
             VmValue::Null => false,
             _ => true,
+        }
+    }
+
+    pub fn as_array_mut(&mut self) -> Result<&mut Vec<VmValue>, VmError> {
+        match self {
+            VmValue::Array(v) => Ok(v.deref_mut()),
+            default => Err(VmError::AttemptToIndex(format!("{:?}", default))),
+        }
+    }
+
+    pub fn as_array(&self) -> Result<&Vec<VmValue>, VmError> {
+        match self {
+            VmValue::Array(v) => Ok(v),
+            default => Err(VmError::AttemptToIndex(format!("{:?}", default))),
         }
     }
 }
