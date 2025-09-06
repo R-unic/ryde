@@ -200,10 +200,10 @@ impl<'a> Vm<'a> {
                 arr.push(value);
             }
             ARRAY_LEN { target, source } => {
-                let arr_value = self.get_register(target)?;
+                let arr_value = self.get_register(source)?;
                 let arr_ref = arr_value.borrow();
                 let arr = arr_ref.as_array()?;
-                self.set_register(source, VmValue::Int(arr.len() as i32))?;
+                self.set_register(target, VmValue::Int(arr.len() as i32))?;
             }
 
             JMP(address) => self.jump(address)?,
