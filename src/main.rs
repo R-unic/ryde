@@ -25,7 +25,7 @@ fn main() {
             target: 1,
             value: VmValue::String("balls".into()),
         },
-        Instruction::STOREINDEXK {
+        Instruction::STORE_INDEXK {
             source: 1,
             object: 0,
             index: 2,

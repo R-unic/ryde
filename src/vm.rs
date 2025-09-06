@@ -162,7 +162,7 @@ impl<'a> Vm<'a> {
                     return Err(VmError::AttemptToIndex(format!("{:?}", object_value)));
                 }
             }
-            STOREINDEX {
+            STORE_INDEX {
                 source,
                 object,
                 index,
@@ -181,7 +181,7 @@ impl<'a> Vm<'a> {
                     return Err(VmError::AttemptToIndex(format!("{:?}", object_value)));
                 }
             }
-            STOREINDEXK {
+            STORE_INDEXK {
                 source,
                 object,
                 index,
@@ -193,6 +193,31 @@ impl<'a> Vm<'a> {
                     self.set_register(object, &VmValue::Array(arr))?;
                 } else {
                     return Err(VmError::AttemptToIndex(format!("{:?}", object_value)));
+                }
+            }
+            NEW_ARRAY_RANGE {
+                target,
+                start,
+                count,
+            } => self.new_array_range(target, start, count)?,
+            NEW_ARRAY(target) => {
+                self.set_register(target, &VmValue::Array(Box::new(Vec::new())))?
+            }
+            ARRAY_PUSH { target, value } => {
+                let arr_value = self.get_register(target)?;
+                if let VmValue::Array(mut arr) = arr_value.clone() {
+                    arr.push(value.clone());
+                    self.set_register(target, &VmValue::Array(arr))?;
+                } else {
+                    return Err(VmError::AttemptToIndex(format!("{:?}", arr_value)));
+                }
+            }
+            ARRAY_LEN { target, source } => {
+                let arr_value = self.get_register(target)?;
+                if let VmValue::Array(arr) = arr_value {
+                    self.set_register(source, &VmValue::Int(arr.len() as i32))?;
+                } else {
+                    return Err(VmError::AttemptToIndex(format!("{:?}", arr_value)));
                 }
             }
 
@@ -373,5 +398,22 @@ impl<'a> Vm<'a> {
 
     fn instruction_count(&self) -> usize {
         self.program.instructions.len()
+    }
+
+    fn new_array_range(
+        &mut self,
+        target: usize,
+        start: usize,
+        count: usize,
+    ) -> Result<(), VmError> {
+        let mut arr = Box::new(Vec::<VmValue>::new());
+        let end = start + count;
+        for i in start..end {
+            let value = self.get_register(i)?;
+            arr.push(value.clone());
+        }
+
+        self.set_register(target, &VmValue::Array(arr))?;
+        Ok(())
     }
 }
