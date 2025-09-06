@@ -195,15 +195,20 @@ impl<'a> Vm<'a> {
                     return Err(VmError::AttemptToIndex(format!("{:?}", object_value)));
                 }
             }
-            NEW_ARRAY_RANGE {
-                target,
-                start,
-                count,
-            } => self.new_array_range(target, start, count)?,
             NEW_ARRAY(target) => {
                 self.set_register(target, &VmValue::Array(Box::new(Vec::new())))?
             }
-            ARRAY_PUSH { target, value } => {
+            ARRAY_PUSH { target, source } => {
+                let arr_value = self.get_register(target)?;
+                if let VmValue::Array(mut arr) = arr_value.clone() {
+                    let value = self.get_register(source)?;
+                    arr.push(value.clone());
+                    self.set_register(target, &VmValue::Array(arr))?;
+                } else {
+                    return Err(VmError::AttemptToIndex(format!("{:?}", arr_value)));
+                }
+            }
+            ARRAY_PUSHK { target, value } => {
                 let arr_value = self.get_register(target)?;
                 if let VmValue::Array(mut arr) = arr_value.clone() {
                     arr.push(value.clone());

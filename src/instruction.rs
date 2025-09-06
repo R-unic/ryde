@@ -152,13 +152,12 @@ pub enum Instruction {
         object: usize,
         index: usize, // constant
     },
-    NEW_ARRAY_RANGE {
-        target: usize,
-        start: usize,
-        count: usize,
-    },
     NEW_ARRAY(usize),
     ARRAY_PUSH {
+        target: usize,
+        source: usize,
+    },
+    ARRAY_PUSHK {
         target: usize,
         value: VmValue,
     },
