@@ -2,12 +2,11 @@ use std::cell::{RefCell, RefMut};
 use std::collections::HashMap;
 use std::rc::Rc;
 
+use crate::array::DynamicArray;
 use crate::error::vm::VmError;
 use crate::instruction::Instruction;
 use crate::serde::Program;
-use crate::value::VmValue;
-
-type SharedValue = Rc<RefCell<VmValue>>;
+use crate::value::{SharedValue, VmValue};
 
 pub struct Vm<'a> {
     pub pc: usize,
@@ -143,12 +142,13 @@ impl<'a> Vm<'a> {
                 let index_value = self.get_register(index)?;
                 let object_value = self.get_register(object)?;
                 let object_ref = object_value.borrow();
-                let arr = object_ref.as_array()?;
-                if let VmValue::Int(i) = *index_value.borrow() {
-                    let value = arr[i as usize].clone();
-                    self.set_register(target, value)?;
-                } else {
-                    return Err(VmError::InvalidIndexType(format!("{:?}", index_value)));
+                if let Ok(arr) = object_ref.as_array() {
+                    if let VmValue::Int(i) = *index_value.borrow() {
+                        let value = arr.index(i as usize);
+                        self.set_register(target, value)?;
+                    } else {
+                        return Err(VmError::InvalidIndexType(format!("{:?}", index_value)));
+                    }
                 }
             }
             INDEXK {
@@ -158,9 +158,10 @@ impl<'a> Vm<'a> {
             } => {
                 let object_value = self.get_register(object)?;
                 let object_ref = object_value.borrow();
-                let arr = object_ref.as_array()?;
-                let value = arr[index].clone();
-                self.set_register(target, value)?;
+                if let Ok(arr) = object_ref.as_array() {
+                    let value = arr.index(index);
+                    self.set_register(target, value)?;
+                }
             }
             STORE_INDEX {
                 source,
@@ -170,11 +171,12 @@ impl<'a> Vm<'a> {
                 let source_value = self.get_register(source)?;
                 let index_value = self.get_register(index)?;
                 let mut object_value = self.get_register_mut(object)?;
-                let arr = object_value.as_array_mut()?;
-                if let VmValue::Int(i) = *index_value.borrow() {
-                    arr[i as usize] = source_value.borrow().clone();
-                } else {
-                    return Err(VmError::InvalidIndexType(format!("{:?}", index_value)));
+                if let Ok(arr) = object_value.as_array_mut() {
+                    if let VmValue::Int(i) = *index_value.borrow() {
+                        arr.new_index_rc(i as usize, source_value);
+                    } else {
+                        return Err(VmError::InvalidIndexType(format!("{:?}", index_value)));
+                    }
                 }
             }
             STORE_INDEXK {
@@ -184,26 +186,30 @@ impl<'a> Vm<'a> {
             } => {
                 let source_value = self.get_register(source)?;
                 let mut object_value = self.get_register_mut(object)?;
-                let arr = object_value.as_array_mut()?;
-                arr[index] = source_value.borrow().clone();
+                if let Ok(arr) = object_value.as_array_mut() {
+                    arr.new_index_rc(index, source_value);
+                }
             }
-            NEW_ARRAY(target) => self.set_register(target, VmValue::Array(Box::new(Vec::new())))?,
+            NEW_ARRAY(target) => self.set_register(target, DynamicArray::new_vm_value())?,
             ARRAY_PUSH { target, source } => {
                 let value = self.get_register(source)?;
                 let mut arr_value = self.get_register_mut(target)?;
-                let arr = arr_value.as_array_mut()?;
-                arr.push(value.borrow().clone());
+                if let Ok(arr) = arr_value.as_array_mut() {
+                    arr.0.push(value.borrow().clone());
+                }
             }
             ARRAY_PUSHK { target, value } => {
                 let mut arr_value = self.get_register_mut(target)?;
-                let arr = arr_value.as_array_mut()?;
-                arr.push(value);
+                if let Ok(arr) = arr_value.as_array_mut() {
+                    arr.0.push(value);
+                }
             }
             ARRAY_LEN { target, source } => {
                 let arr_value = self.get_register(source)?;
                 let arr_ref = arr_value.borrow();
-                let arr = arr_ref.as_array()?;
-                self.set_register(target, VmValue::Int(arr.len() as i32))?;
+                if let Ok(arr) = arr_ref.as_array() {
+                    self.set_register(target, VmValue::Int(arr.0.len() as i32))?;
+                }
             }
 
             JMP(address) => self.jump(address)?,
@@ -349,7 +355,7 @@ impl<'a> Vm<'a> {
             .ok_or(VmError::RegisterOutOfBounds(index))
     }
 
-    fn get_register_mut(&mut self, index: usize) -> Result<RefMut<VmValue>, VmError> {
+    fn get_register_mut(&mut self, index: usize) -> Result<RefMut<'_, VmValue>, VmError> {
         self.registers
             .get(index)
             .ok_or(VmError::RegisterOutOfBounds(index))
@@ -357,6 +363,8 @@ impl<'a> Vm<'a> {
     }
 
     fn set_register_rc(&mut self, index: usize, value: SharedValue) -> Result<(), VmError> {
+        if let Ok(arr) = value.borrow_mut().as_array_mut() {}
+
         if let Some(reg) = self.registers.get_mut(index) {
             *reg = value;
             Ok(())

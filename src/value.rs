@@ -1,9 +1,10 @@
-use core::fmt;
-use std::{cmp::Ordering, ops::DerefMut};
-
 use bincode::{Decode, Encode};
+use core::fmt;
+use std::{cell::RefCell, cmp::Ordering, rc::Rc};
 
-use crate::error::vm::VmError;
+use crate::{array::DynamicArray, error::vm::VmError};
+
+pub type SharedValue = Rc<RefCell<VmValue>>;
 
 #[derive(Encode, Decode, Debug, Clone)]
 pub enum VmValue {
@@ -11,7 +12,7 @@ pub enum VmValue {
     Int(i32),
     String(Vec<u8>),
     Boolean(bool),
-    Array(Box<Vec<VmValue>>),
+    DynamicArray(DynamicArray),
     Null,
 }
 
@@ -24,16 +25,16 @@ impl VmValue {
         }
     }
 
-    pub fn as_array_mut(&mut self) -> Result<&mut Vec<VmValue>, VmError> {
+    pub fn as_array_mut(&mut self) -> Result<&mut DynamicArray, VmError> {
         match self {
-            VmValue::Array(v) => Ok(v.deref_mut()),
+            VmValue::DynamicArray(v) => Ok(v),
             default => Err(VmError::AttemptToIndex(format!("{:?}", default))),
         }
     }
 
-    pub fn as_array(&self) -> Result<&Vec<VmValue>, VmError> {
+    pub fn as_array(&self) -> Result<&DynamicArray, VmError> {
         match self {
-            VmValue::Array(v) => Ok(v),
+            VmValue::DynamicArray(v) => Ok(v),
             default => Err(VmError::AttemptToIndex(format!("{:?}", default))),
         }
     }
@@ -50,11 +51,11 @@ impl fmt::Display for VmValue {
                 "{}",
                 String::from_utf8(bytes.to_vec()).expect("failed to convert bytes into string")
             ),
-            VmValue::Array(v) => {
+            VmValue::DynamicArray(v) => {
                 write!(f, "[")?;
-                for (i, value) in v.iter().enumerate() {
+                for (i, value) in v.0.iter().enumerate() {
                     write!(f, "{}", value)?;
-                    if i < v.len() - 1 {
+                    if i < v.0.len() - 1 {
                         write!(f, ", ")?;
                     }
                 }
