@@ -152,6 +152,16 @@ pub enum Instruction {
         object: usize,
         index: usize, // constant
     },
+    /// object[index] = null -- register index
+    DELETE_INDEX {
+        object: usize,
+        index: usize, // register
+    },
+    /// object[index] = null -- constant index
+    DELETE_INDEXK {
+        object: usize,
+        index: usize, // constant
+    },
     NEW_ARRAY(usize),
     ARRAY_PUSH {
         target: usize,

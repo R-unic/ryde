@@ -190,6 +190,23 @@ impl<'a> Vm<'a> {
                     arr.new_index_rc(index, source_value);
                 }
             }
+            DELETE_INDEX { object, index } => {
+                let index_value = self.get_register(index)?;
+                let mut object_value = self.get_register_mut(object)?;
+                if let Ok(arr) = object_value.as_array_mut() {
+                    if let VmValue::Int(i) = *index_value.borrow() {
+                        arr.new_index(i as usize, VmValue::Null);
+                    } else {
+                        return Err(VmError::InvalidIndexType(format!("{:?}", index_value)));
+                    }
+                }
+            }
+            DELETE_INDEXK { object, index } => {
+                let mut object_value = self.get_register_mut(object)?;
+                if let Ok(arr) = object_value.as_array_mut() {
+                    arr.new_index(index, VmValue::Null);
+                }
+            }
             NEW_ARRAY(target) => self.set_register(target, DynamicArray::new_vm_value())?,
             ARRAY_PUSH { target, source } => {
                 let value = self.get_register(source)?;
