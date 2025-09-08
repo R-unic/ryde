@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 use crate::array::DynamicArray;
-use crate::error::vm::VmError;
+use crate::error::vm::{VmError, invalid_index_err};
 use crate::instruction::Instruction;
 use crate::serde::Program;
 use crate::value::{SharedValue, VmValue};
@@ -147,8 +147,20 @@ impl<'a> Vm<'a> {
                         let value = arr.index(i as usize);
                         self.set_register(target, value)?;
                     } else {
-                        return Err(VmError::InvalidIndexType(format!("{:?}", index_value)));
+                        return invalid_index_err(index_value.borrow().clone());
                     }
+                }
+            }
+            INDEXN {
+                target,
+                object,
+                index,
+            } => {
+                let object_value = self.get_register(object)?;
+                let object_ref = object_value.borrow();
+                if let Ok(arr) = object_ref.as_array() {
+                    let value = arr.index(index);
+                    self.set_register(target, value)?;
                 }
             }
             INDEXK {
@@ -159,8 +171,12 @@ impl<'a> Vm<'a> {
                 let object_value = self.get_register(object)?;
                 let object_ref = object_value.borrow();
                 if let Ok(arr) = object_ref.as_array() {
-                    let value = arr.index(index);
-                    self.set_register(target, value)?;
+                    if let VmValue::Int(i) = index {
+                        let value = arr.index(i as usize);
+                        self.set_register(target, value)?;
+                    } else {
+                        return invalid_index_err(index);
+                    }
                 }
             }
             STORE_INDEX {
@@ -179,7 +195,7 @@ impl<'a> Vm<'a> {
                     }
                 }
             }
-            STORE_INDEXK {
+            STORE_INDEXN {
                 source,
                 object,
                 index,
@@ -190,6 +206,21 @@ impl<'a> Vm<'a> {
                     arr.new_index_rc(index, source_value);
                 }
             }
+            STORE_INDEXK {
+                source,
+                object,
+                index,
+            } => {
+                let source_value = self.get_register(source)?;
+                let mut object_value = self.get_register_mut(object)?;
+                if let Ok(arr) = object_value.as_array_mut() {
+                    if let VmValue::Int(i) = index {
+                        arr.new_index_rc(i as usize, source_value);
+                    } else {
+                        return invalid_index_err(index);
+                    }
+                }
+            }
             DELETE_INDEX { object, index } => {
                 let index_value = self.get_register(index)?;
                 let mut object_value = self.get_register_mut(object)?;
@@ -197,14 +228,24 @@ impl<'a> Vm<'a> {
                     if let VmValue::Int(i) = *index_value.borrow() {
                         arr.new_index(i as usize, VmValue::Null);
                     } else {
-                        return Err(VmError::InvalidIndexType(format!("{:?}", index_value)));
+                        return invalid_index_err(index_value.borrow().clone());
                     }
+                }
+            }
+            DELETE_INDEXN { object, index } => {
+                let mut object_value = self.get_register_mut(object)?;
+                if let Ok(arr) = object_value.as_array_mut() {
+                    arr.new_index(index, VmValue::Null);
                 }
             }
             DELETE_INDEXK { object, index } => {
                 let mut object_value = self.get_register_mut(object)?;
                 if let Ok(arr) = object_value.as_array_mut() {
-                    arr.new_index(index, VmValue::Null);
+                    if let VmValue::Int(i) = index {
+                        arr.new_index(i as usize, VmValue::Null);
+                    } else {
+                        return invalid_index_err(index);
+                    }
                 }
             }
             NEW_ARRAY(target) => self.set_register(target, DynamicArray::new_vm_value())?,
