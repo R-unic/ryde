@@ -12,43 +12,159 @@ pub enum Instruction {
     //     constant_index: usize,
     // },
     /// Load a constant value directly into a register
-    LOADV { target: usize, value: VmValue },
+    LOADV {
+        target: usize,
+        value: VmValue,
+    },
 
     /// target = a + b
-    ADD { target: usize, a: usize, b: usize },
+    ADD {
+        target: usize,
+        a: usize,
+        b: usize,
+    },
     /// target = a - b
-    SUB { target: usize, a: usize, b: usize },
+    SUB {
+        target: usize,
+        a: usize,
+        b: usize,
+    },
     /// target = a * b
-    MUL { target: usize, a: usize, b: usize },
+    MUL {
+        target: usize,
+        a: usize,
+        b: usize,
+    },
     /// target = a / b
-    DIV { target: usize, a: usize, b: usize },
+    DIV {
+        target: usize,
+        a: usize,
+        b: usize,
+    },
     /// target = a // b
-    IDIV { target: usize, a: usize, b: usize },
+    IDIV {
+        target: usize,
+        a: usize,
+        b: usize,
+    },
     /// target = a ^ b
-    POW { target: usize, a: usize, b: usize },
+    POW {
+        target: usize,
+        a: usize,
+        b: usize,
+    },
     /// target = a % b
-    MOD { target: usize, a: usize, b: usize },
+    MOD {
+        target: usize,
+        a: usize,
+        b: usize,
+    },
+    /// target = a ~ b
+    BXOR {
+        target: usize,
+        a: usize,
+        b: usize,
+    },
+    /// target = a & b
+    BAND {
+        target: usize,
+        a: usize,
+        b: usize,
+    },
+    /// target = a | b
+    BOR {
+        target: usize,
+        a: usize,
+        b: usize,
+    },
+    /// target = a << b
+    BLSH {
+        target: usize,
+        a: usize,
+        b: usize,
+    },
+    /// target = a >>> b
+    BRSH {
+        target: usize,
+        a: usize,
+        b: usize,
+    },
+    /// target = a >> b
+    BARSH {
+        target: usize,
+        a: usize,
+        b: usize,
+    },
+    /// target = ~operand
+    BNOT {
+        target: usize,
+        operand: usize,
+    },
     /// target = -operand
-    NEGATE { target: usize, operand: usize },
+    NEGATE {
+        target: usize,
+        operand: usize,
+    },
 
     /// target = a && b
-    AND { target: usize, a: usize, b: usize },
+    AND {
+        target: usize,
+        a: usize,
+        b: usize,
+    },
     /// target = a || b
-    OR { target: usize, a: usize, b: usize },
+    OR {
+        target: usize,
+        a: usize,
+        b: usize,
+    },
+    /// target = a ?? b
+    NULL_COALESCE {
+        target: usize,
+        a: usize,
+        b: usize,
+    },
     /// target = a == b
-    EQ { target: usize, a: usize, b: usize },
+    EQ {
+        target: usize,
+        a: usize,
+        b: usize,
+    },
     /// target = a != b
-    NEQ { target: usize, a: usize, b: usize },
+    NEQ {
+        target: usize,
+        a: usize,
+        b: usize,
+    },
     /// target = a < b
-    LT { target: usize, a: usize, b: usize },
+    LT {
+        target: usize,
+        a: usize,
+        b: usize,
+    },
     /// target = a <= b
-    LTE { target: usize, a: usize, b: usize },
+    LTE {
+        target: usize,
+        a: usize,
+        b: usize,
+    },
     /// target = a > b
-    GT { target: usize, a: usize, b: usize },
+    GT {
+        target: usize,
+        a: usize,
+        b: usize,
+    },
     /// target = a >= b
-    GTE { target: usize, a: usize, b: usize },
+    GTE {
+        target: usize,
+        a: usize,
+        b: usize,
+    },
     /// target = !operand
-    NOT { target: usize, operand: usize },
+    NOT {
+        target: usize,
+        operand: usize,
+    },
     /// Increment variable `name` by 1, and store the result in `target` if specified
     INC {
         target: Option<usize>,
@@ -108,29 +224,56 @@ pub enum Instruction {
         index: usize, // constant
     },
     /// object[index] = null
-    DELETE_INDEXK { object: usize, index: VmValue },
+    DELETE_INDEXK {
+        object: usize,
+        index: VmValue,
+    },
     /// Creates an empty array at the target register
     NEW_ARRAY(usize),
     /// target.push(source)
-    ARRAY_PUSH { target: usize, source: usize },
+    ARRAY_PUSH {
+        target: usize,
+        source: usize,
+    },
     /// target.push(value)
-    ARRAY_PUSHK { target: usize, value: VmValue },
+    ARRAY_PUSHK {
+        target: usize,
+        value: VmValue,
+    },
     /// target = source.length
-    LEN { target: usize, source: usize },
+    LEN {
+        target: usize,
+        source: usize,
+    },
 
     /// Jump to instruction at the specified address
     JMP(usize),
     /// Jump to instruction at `address` if the value of `source` is not truthy
-    JZ { source: usize, address: usize },
+    JZ {
+        source: usize,
+        address: usize,
+    },
     /// Jump to instruction at `address` if the value of `source` is truthy
-    JNZ { source: usize, address: usize },
+    JNZ {
+        source: usize,
+        address: usize,
+    },
 
     /// Store the value of register `target` into variable `name`
-    STORE { source: usize, name: String },
+    STORE {
+        source: usize,
+        name: String,
+    },
     /// Store `value` into variable `name`
-    // STOREK { name: String, value: VmValue },
+    STOREK {
+        name: String,
+        value: VmValue,
+    },
     /// Load the value of variable `name` into register `target`
-    LOAD { target: usize, name: String },
+    LOAD {
+        target: usize,
+        name: String,
+    },
     /// Call a subroutine at the specified instruction
     CALL(usize),
     /// Return from a subroutine
@@ -138,6 +281,7 @@ pub enum Instruction {
 
     /// Prints the value of the specified register into stdout
     PRINT(usize),
+    PRINTK(VmValue),
     /// Stops execution
     HALT,
 }

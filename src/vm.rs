@@ -76,7 +76,7 @@ impl<'a> Vm<'a> {
         match instruction {
             LOADV { target, value } => self.set_register(target, value)?,
             ADD { target, a, b } => {
-                if let Err(_) = self.arithmetic_binop(target, a, b, opcode_name, |a, b| a + b) {
+                if let Err(_) = self.float_binop(target, a, b, opcode_name, |a, b| a + b) {
                     let a_value = self.get_register(a)?.clone();
                     let b_value = self.get_register(b)?.clone();
                     if let VmValue::String(a) = a_value.borrow().clone()
@@ -86,32 +86,45 @@ impl<'a> Vm<'a> {
                     }
                 }
             }
-            SUB { target, a, b } => {
-                self.arithmetic_binop(target, a, b, opcode_name, |a, b| a - b)?
-            }
-            MUL { target, a, b } => {
-                self.arithmetic_binop(target, a, b, opcode_name, |a, b| a * b)?
-            }
-            DIV { target, a, b } => {
-                self.arithmetic_binop(target, a, b, opcode_name, |a, b| a / b)?
-            }
+            SUB { target, a, b } => self.float_binop(target, a, b, opcode_name, |a, b| a - b)?,
+            MUL { target, a, b } => self.float_binop(target, a, b, opcode_name, |a, b| a * b)?,
+            DIV { target, a, b } => self.float_binop(target, a, b, opcode_name, |a, b| a / b)?,
             IDIV { target, a, b } => {
-                self.arithmetic_binop(target, a, b, opcode_name, |a, b| f64::floor(a / b))?
+                self.float_binop(target, a, b, opcode_name, |a, b| f64::floor(a / b))?
             }
-            POW { target, a, b } => self.arithmetic_binop(target, a, b, opcode_name, |a, b| {
+            POW { target, a, b } => self.float_binop(target, a, b, opcode_name, |a, b| {
                 if b.fract() == 0.0 {
                     f64::powi(a, b as i32)
                 } else {
                     f64::powf(a, b)
                 }
             })?,
-            MOD { target, a, b } => {
-                self.arithmetic_binop(target, a, b, opcode_name, |a, b| a % b)?
+            MOD { target, a, b } => self.float_binop(target, a, b, opcode_name, |a, b| a % b)?,
+            BXOR { target, a, b } => self.int_binop(target, a, b, opcode_name, |a, b| a ^ b)?,
+            BAND { target, a, b } => self.int_binop(target, a, b, opcode_name, |a, b| a & b)?,
+            BOR { target, a, b } => self.int_binop(target, a, b, opcode_name, |a, b| a | b)?,
+            BLSH { target, a, b } => self.int_binop(target, a, b, opcode_name, |a, b| a << b)?,
+            BRSH { target, a, b } => {
+                self.int_binop(target, a, b, opcode_name, |a, b| ((a as u32) >> b) as i32)?
             }
-            NEGATE { target, operand } => self.arithmetic_unop(target, operand, |v| -v)?,
+            BARSH { target, a, b } => self.int_binop(target, a, b, opcode_name, |a, b| a >> b)?,
+            BNOT { target, operand } => self.int_unop(target, operand, |v| !v)?,
+            NEGATE { target, operand } => self.float_unop(target, operand, |v| -v)?,
 
             AND { target, a, b } => self.logical_binop(target, a, b, |a, b| a && b)?,
             OR { target, a, b } => self.logical_binop(target, a, b, |a, b| a || b)?,
+            NULL_COALESCE { target, a, b } => {
+                let a_value = self.get_register(a)?;
+                let b_value = self.get_register(b)?;
+                self.set_register(
+                    target,
+                    if *a_value.borrow() == VmValue::Null {
+                        b_value.borrow().clone()
+                    } else {
+                        a_value.borrow().clone()
+                    },
+                )?
+            }
             EQ { target, a, b } => self.comparison_binop(target, a, b, |a, b| a == b)?,
             NEQ { target, a, b } => self.comparison_binop(target, a, b, |a, b| a != b)?,
             LT { target, a, b } => self.comparison_binop(target, a, b, |a, b| a < b)?,
@@ -237,6 +250,7 @@ impl<'a> Vm<'a> {
                 let value = self.get_register(source)?;
                 self.set_variable_rc(name, value);
             }
+            STOREK { name, value } => self.set_variable(name, value),
             LOAD { target, name } => {
                 let value = self.lookup_variable(&name)?;
                 self.set_register_rc(target, value)?
@@ -245,17 +259,18 @@ impl<'a> Vm<'a> {
             RETURN => self.call_return()?,
 
             PRINT(target) => println!("{}", self.get_register(target)?.borrow()),
+            PRINTK(value) => println!("{}", value),
             HALT => self.pc = self.instruction_count(),
         }
         Ok(())
     }
 
-    fn set_variable_rc(&mut self, name: String, value: SharedValue) -> Option<SharedValue> {
-        self.variables.insert(name, value)
+    fn set_variable_rc(&mut self, name: String, value: SharedValue) -> () {
+        self.variables.insert(name, value);
     }
 
-    fn set_variable(&mut self, name: String, value: VmValue) -> Option<SharedValue> {
-        self.set_variable_rc(name, Rc::new(RefCell::new(value)))
+    fn set_variable(&mut self, name: String, value: VmValue) -> () {
+        self.set_variable_rc(name, Rc::new(RefCell::new(value)));
     }
 
     fn lookup_variable(&self, name: &str) -> Result<SharedValue, VmError> {
@@ -421,7 +436,23 @@ impl<'a> Vm<'a> {
         self.set_register(target, VmValue::Boolean(result))
     }
 
-    fn arithmetic_unop<F>(&mut self, target: usize, operand: usize, f: F) -> Result<(), VmError>
+    fn int_unop<F>(&mut self, target: usize, operand: usize, f: F) -> Result<(), VmError>
+    where
+        F: FnOnce(i32) -> i32,
+    {
+        let operand_value = self.get_register(operand)?;
+        if let VmValue::Int(int) = *operand_value.borrow() {
+            let result = f(int);
+            self.set_register(target, VmValue::Int(result))
+        } else {
+            Err(VmError::OperandTypeMismatch {
+                expected: "number".to_string(),
+                actual: format!("{:?}", operand_value),
+            })
+        }
+    }
+
+    fn float_unop<F>(&mut self, target: usize, operand: usize, f: F) -> Result<(), VmError>
     where
         F: FnOnce(f64) -> f64,
     {
@@ -439,7 +470,38 @@ impl<'a> Vm<'a> {
         }
     }
 
-    fn arithmetic_binop<F>(
+    fn int_binop<F>(
+        &mut self,
+        target: usize,
+        a: usize,
+        b: usize,
+        opcode_name: String,
+        f: F,
+    ) -> Result<(), VmError>
+    where
+        F: FnOnce(i32, i32) -> i32,
+    {
+        let a_value = self.get_register(a)?;
+        let b_value = self.get_register(b)?;
+        let a_ref = a_value.borrow();
+        let b_ref = b_value.borrow();
+        let (a_number, b_number) = match (&*a_ref, &*b_ref) {
+            (VmValue::Int(ai), VmValue::Int(bi)) => (*ai, *bi),
+            (a_other, b_other) => {
+                return Err(VmError::BinaryTypeMismatch {
+                    opcode_name,
+                    expected: "number".to_string(),
+                    a_actual: format!("{:?}", a_other),
+                    b_actual: format!("{:?}", b_other),
+                });
+            }
+        };
+
+        let result = f(a_number, b_number);
+        self.set_register(target, VmValue::Int(result))
+    }
+
+    fn float_binop<F>(
         &mut self,
         target: usize,
         a: usize,
