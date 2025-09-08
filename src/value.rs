@@ -10,7 +10,7 @@ pub type SharedValue = Rc<RefCell<VmValue>>;
 pub enum VmValue {
     Float(f64),
     Int(i32),
-    String(Vec<u8>),
+    String(String),
     Boolean(bool),
     DynamicArray(DynamicArray),
     Null,
@@ -46,11 +46,7 @@ impl fmt::Display for VmValue {
             VmValue::Float(v) => write!(f, "{}", v),
             VmValue::Int(v) => write!(f, "{}", v),
             VmValue::Boolean(v) => write!(f, "{}", v),
-            VmValue::String(bytes) => write!(
-                f,
-                "{}",
-                String::from_utf8(bytes.to_vec()).expect("failed to convert bytes into string")
-            ),
+            VmValue::String(bytes) => write!(f, "{}", bytes),
             VmValue::DynamicArray(v) => {
                 write!(f, "[")?;
                 for (i, value) in v.0.iter().enumerate() {
