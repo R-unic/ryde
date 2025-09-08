@@ -28,5 +28,5 @@ fn main() {
         eprintln!("VM error: {}", e);
     }
 
-    println!("{:?}", vm.registers);
+    println!("\nRegisters: {:?}", vm.registers);
 }

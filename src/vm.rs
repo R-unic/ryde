@@ -119,35 +119,19 @@ impl<'a> Vm<'a> {
             GT { target, a, b } => self.comparison_binop(target, a, b, |a, b| a > b)?,
             GTE { target, a, b } => self.comparison_binop(target, a, b, |a, b| a >= b)?,
             NOT { target, operand } => self.logical_unop(target, operand, |v| !v)?,
-            INC { target, name } => {
-                let value = self.lookup_variable(&name)?;
-                if let VmValue::Int(n) = *value.borrow() {
-                    let new_value = VmValue::Int(n + 1);
-                    self.set_variable(name, new_value.clone());
-                    if let Some(target) = target {
-                        self.set_register(target, new_value)?;
-                    }
-                } else {
-                    return Err(VmError::OperandTypeMismatch {
-                        expected: "number".to_string(),
-                        actual: format!("{:?}", value),
-                    });
-                }
+            INC {
+                target,
+                name,
+                returns_old,
+            } => {
+                self.incrementor(target, name, returns_old, 1)?;
             }
-            DEC { target, name } => {
-                let value = self.lookup_variable(&name)?;
-                if let VmValue::Int(n) = *value.borrow() {
-                    let new_value = VmValue::Int(n - 1);
-                    self.set_variable(name, new_value.clone());
-                    if let Some(target) = target {
-                        self.set_register(target, new_value)?;
-                    }
-                } else {
-                    return Err(VmError::OperandTypeMismatch {
-                        expected: "number".to_string(),
-                        actual: format!("{:?}", value),
-                    });
-                }
+            DEC {
+                target,
+                name,
+                returns_old,
+            } => {
+                self.incrementor(target, name, returns_old, -1)?;
             }
             INDEX {
                 target,
@@ -371,6 +355,35 @@ impl<'a> Vm<'a> {
             arr.new_index(index, VmValue::Null);
         }
         Ok(())
+    }
+
+    fn incrementor(
+        &mut self,
+        target: Option<usize>,
+        name: String,
+        returns_old: bool,
+        amount: i8,
+    ) -> Result<(), VmError> {
+        let value = self.lookup_variable(&name)?;
+        Ok(if let VmValue::Int(n) = *value.borrow() {
+            let new_value = VmValue::Int(n + amount as i32);
+            self.set_variable(name, new_value.clone());
+            if let Some(target) = target {
+                self.set_register(
+                    target,
+                    if returns_old {
+                        VmValue::Int(n)
+                    } else {
+                        new_value
+                    },
+                )?;
+            }
+        } else {
+            return Err(VmError::OperandTypeMismatch {
+                expected: "number".to_string(),
+                actual: format!("{:?}", value),
+            });
+        })
     }
 
     fn comparison_binop<F>(
