@@ -27,6 +27,13 @@ impl Frame {
     }
 }
 
+fn index_string(s: String, index: usize) -> VmValue {
+    s.chars()
+        .nth(index)
+        .map(|c| VmValue::String(c.to_string()))
+        .unwrap_or(VmValue::Null)
+}
+
 impl<'a> Vm<'a> {
     pub fn new(program: &'a Program, register_count: usize) -> Self {
         Self {
@@ -213,11 +220,19 @@ impl<'a> Vm<'a> {
                     arr.0.push(value);
                 }
             }
-            ARRAY_LEN { target, source } => {
-                let arr_value = self.get_register(source)?;
-                let arr_ref = arr_value.borrow();
-                if let Ok(arr) = arr_ref.as_array() {
-                    self.set_register(target, VmValue::Int(arr.0.len() as i32))?;
+            LEN { target, source } => {
+                let object_value = self.get_register(source)?;
+                let object_ref = object_value.borrow();
+                let length = if let Ok(arr) = object_ref.as_array() {
+                    Some(arr.0.len())
+                } else if let VmValue::String(s) = object_ref.clone() {
+                    Some(s.len())
+                } else {
+                    None
+                };
+
+                if let Some(length) = length {
+                    self.set_register(target, VmValue::Int(length as i32))?;
                 }
             }
 
@@ -278,6 +293,12 @@ impl<'a> Vm<'a> {
             } else {
                 return Err(invalid_index_err(index.clone()));
             }
+        } else if let VmValue::String(s) = object_value.borrow().clone() {
+            if let VmValue::Int(i) = index {
+                return Ok(index_string(s, *i as usize));
+            } else {
+                return Err(invalid_index_err(index.clone()));
+            }
         }
         Ok(VmValue::Null)
     }
@@ -286,6 +307,8 @@ impl<'a> Vm<'a> {
         let object_value = self.get_register(object)?;
         if let Ok(arr) = object_value.borrow().as_array() {
             return Ok(arr.index(index));
+        } else if let VmValue::String(s) = object_value.borrow().clone() {
+            return Ok(index_string(s, index));
         }
         Ok(VmValue::Null)
     }

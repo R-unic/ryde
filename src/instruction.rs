@@ -108,7 +108,7 @@ pub enum Instruction {
     /// target.push(value)
     ARRAY_PUSHK { target: usize, value: VmValue },
     /// target = source.length
-    ARRAY_LEN { target: usize, source: usize },
+    LEN { target: usize, source: usize },
 
     /// Jump to instruction at the specified address
     JMP(usize),
