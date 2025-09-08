@@ -2,8 +2,8 @@ use std::{error::Error, fmt};
 
 use crate::value::VmValue;
 
-pub fn invalid_index_err(index: VmValue) -> Result<(), VmError> {
-    Err(VmError::InvalidIndexType(format!("{:?}", index)))
+pub fn invalid_index_err(index: VmValue) -> VmError {
+    VmError::InvalidIndexType(format!("{:?}", index))
 }
 
 #[derive(Debug)]

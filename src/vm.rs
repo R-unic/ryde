@@ -140,44 +140,24 @@ impl<'a> Vm<'a> {
                 index,
             } => {
                 let index_value = self.get_register(index)?;
-                let object_value = self.get_register(object)?;
-                let object_ref = object_value.borrow();
-                if let Ok(arr) = object_ref.as_array() {
-                    if let VmValue::Int(i) = *index_value.borrow() {
-                        let value = arr.index(i as usize);
-                        self.set_register(target, value)?;
-                    } else {
-                        return invalid_index_err(index_value.borrow().clone());
-                    }
-                }
+                let value = self.index_rc(object, index_value, |arr, i| arr.index(i))?;
+                self.set_register(target, value)?;
             }
             INDEXN {
                 target,
                 object,
                 index,
             } => {
-                let object_value = self.get_register(object)?;
-                let object_ref = object_value.borrow();
-                if let Ok(arr) = object_ref.as_array() {
-                    let value = arr.index(index);
-                    self.set_register(target, value)?;
-                }
+                let value = self.index_known(object, |arr| arr.index(index))?;
+                self.set_register(target, value)?;
             }
             INDEXK {
                 target,
                 object,
                 index,
             } => {
-                let object_value = self.get_register(object)?;
-                let object_ref = object_value.borrow();
-                if let Ok(arr) = object_ref.as_array() {
-                    if let VmValue::Int(i) = index {
-                        let value = arr.index(i as usize);
-                        self.set_register(target, value)?;
-                    } else {
-                        return invalid_index_err(index);
-                    }
-                }
+                let value = self.index(object, &index, |arr, i| arr.index(i))?;
+                self.set_register(target, value)?;
             }
             STORE_INDEX {
                 source,
@@ -186,14 +166,9 @@ impl<'a> Vm<'a> {
             } => {
                 let source_value = self.get_register(source)?;
                 let index_value = self.get_register(index)?;
-                let mut object_value = self.get_register_mut(object)?;
-                if let Ok(arr) = object_value.as_array_mut() {
-                    if let VmValue::Int(i) = *index_value.borrow() {
-                        arr.new_index_rc(i as usize, source_value);
-                    } else {
-                        return Err(VmError::InvalidIndexType(format!("{:?}", index_value)));
-                    }
-                }
+                self.index_mut_rc(object, index_value, |arr, i| {
+                    arr.new_index_rc(i, source_value)
+                })?;
             }
             STORE_INDEXN {
                 source,
@@ -201,10 +176,7 @@ impl<'a> Vm<'a> {
                 index,
             } => {
                 let source_value = self.get_register(source)?;
-                let mut object_value = self.get_register_mut(object)?;
-                if let Ok(arr) = object_value.as_array_mut() {
-                    arr.new_index_rc(index, source_value);
-                }
+                self.index_known_mut(object, |arr| arr.new_index_rc(index, source_value))?;
             }
             STORE_INDEXK {
                 source,
@@ -212,41 +184,19 @@ impl<'a> Vm<'a> {
                 index,
             } => {
                 let source_value = self.get_register(source)?;
-                let mut object_value = self.get_register_mut(object)?;
-                if let Ok(arr) = object_value.as_array_mut() {
-                    if let VmValue::Int(i) = index {
-                        arr.new_index_rc(i as usize, source_value);
-                    } else {
-                        return invalid_index_err(index);
-                    }
-                }
+                self.index_mut(object, &index, |arr, i| arr.new_index_rc(i, source_value))?;
             }
             DELETE_INDEX { object, index } => {
                 let index_value = self.get_register(index)?;
-                let mut object_value = self.get_register_mut(object)?;
-                if let Ok(arr) = object_value.as_array_mut() {
-                    if let VmValue::Int(i) = *index_value.borrow() {
-                        arr.new_index(i as usize, VmValue::Null);
-                    } else {
-                        return invalid_index_err(index_value.borrow().clone());
-                    }
-                }
+                self.index_mut_rc(object, index_value, |arr, i| {
+                    arr.new_index(i, VmValue::Null)
+                })?;
             }
             DELETE_INDEXN { object, index } => {
-                let mut object_value = self.get_register_mut(object)?;
-                if let Ok(arr) = object_value.as_array_mut() {
-                    arr.new_index(index, VmValue::Null);
-                }
+                self.index_known_mut(object, |arr| arr.new_index(index, VmValue::Null))?;
             }
             DELETE_INDEXK { object, index } => {
-                let mut object_value = self.get_register_mut(object)?;
-                if let Ok(arr) = object_value.as_array_mut() {
-                    if let VmValue::Int(i) = index {
-                        arr.new_index(i as usize, VmValue::Null);
-                    } else {
-                        return invalid_index_err(index);
-                    }
-                }
+                self.index_mut(object, &index, |arr, i| arr.new_index(i, VmValue::Null))?;
             }
             NEW_ARRAY(target) => self.set_register(target, DynamicArray::new_vm_value())?,
             ARRAY_PUSH { target, source } => {
@@ -313,6 +263,77 @@ impl<'a> Vm<'a> {
             .get(name)
             .cloned()
             .ok_or(VmError::VariableNotFound(name.to_string()))
+    }
+
+    fn index_rc<F>(&self, object: usize, index: SharedValue, f: F) -> Result<VmValue, VmError>
+    where
+        F: FnOnce(&DynamicArray, usize) -> VmValue,
+    {
+        self.index(object, &index.borrow(), f)
+    }
+
+    fn index<F>(&self, object: usize, index: &VmValue, f: F) -> Result<VmValue, VmError>
+    where
+        F: FnOnce(&DynamicArray, usize) -> VmValue,
+    {
+        let object_value = self.get_register(object)?;
+        if let Ok(arr) = object_value.borrow().as_array() {
+            if let VmValue::Int(i) = index {
+                return Ok(f(arr, *i as usize));
+            } else {
+                return Err(invalid_index_err(index.clone()));
+            }
+        }
+        Ok(VmValue::Null)
+    }
+
+    fn index_known<F>(&self, object: usize, f: F) -> Result<VmValue, VmError>
+    where
+        F: FnOnce(&DynamicArray) -> VmValue,
+    {
+        let object_value = self.get_register(object)?;
+        if let Ok(arr) = object_value.borrow().as_array() {
+            return Ok(f(arr));
+        }
+        Ok(VmValue::Null)
+    }
+
+    fn index_mut_rc<F>(
+        &mut self,
+        object: usize,
+        index_value: SharedValue,
+        f: F,
+    ) -> Result<(), VmError>
+    where
+        F: FnOnce(&mut DynamicArray, usize) -> (),
+    {
+        self.index_mut(object, &index_value.borrow(), f)
+    }
+
+    fn index_mut<F>(&mut self, object: usize, index: &VmValue, f: F) -> Result<(), VmError>
+    where
+        F: FnOnce(&mut DynamicArray, usize) -> (),
+    {
+        let mut object_value = self.get_register_mut(object)?;
+        if let Ok(arr) = object_value.as_array_mut() {
+            if let VmValue::Int(i) = index {
+                f(arr, *i as usize);
+            } else {
+                return Err(invalid_index_err(index.clone()));
+            }
+        }
+        Ok(())
+    }
+
+    fn index_known_mut<F>(&mut self, object: usize, f: F) -> Result<(), VmError>
+    where
+        F: FnOnce(&mut DynamicArray) -> (),
+    {
+        let mut object_value = self.get_register_mut(object)?;
+        if let Ok(arr) = object_value.as_array_mut() {
+            f(arr);
+        }
+        Ok(())
     }
 
     fn comparison_binop<F>(
@@ -421,8 +442,6 @@ impl<'a> Vm<'a> {
     }
 
     fn set_register_rc(&mut self, index: usize, value: SharedValue) -> Result<(), VmError> {
-        if let Ok(arr) = value.borrow_mut().as_array_mut() {}
-
         if let Some(reg) = self.registers.get_mut(index) {
             *reg = value;
             Ok(())
