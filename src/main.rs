@@ -1,20 +1,14 @@
-use ryde::{
-    // instruction::Instruction,
-    serde::Program,
-    // value::VmValue,
-    vm::Vm,
-};
+use ryde::{serde::Program, vm::Vm};
 
 fn main() {
+    // let mut o = Object::new();
+    // o.new_index(VmValue::Int(2), VmValue::Int(4));
+    // o.new_index(VmValue::Int(6), VmValue::Int(8));
+
     // let instructions: Vec<Instruction> = vec![
-    //     Instruction::NEW_ARRAY(0)
-    //     Instruction::ARRAY_PUSHK {
+    //     Instruction::LOADV {
     //         target: 0,
-    //         value: VmValue::Array(Box::new(vec![VmValue::Int(1), VmValue::Int(2)])),
-    //     },
-    //     Instruction::ARRAY_PUSHK {
-    //         target: 0,
-    //         value: VmValue::Array(Box::new(vec![VmValue::Int(3), VmValue::Int(4)])),
+    //         value: VmValue::Object(o),
     //     },
     //     Instruction::HALT,
     // ];

@@ -2,7 +2,7 @@ use bincode::{Decode, Encode};
 
 use crate::value::{SharedValue, VmValue};
 
-#[derive(Encode, Decode, Debug, Clone)]
+#[derive(Encode, Decode, Hash, Eq, Ord, PartialEq, PartialOrd, Debug, Clone)]
 pub struct DynamicArray(pub Vec<VmValue>);
 
 impl DynamicArray {

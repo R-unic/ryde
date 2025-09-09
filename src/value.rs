@@ -1,8 +1,13 @@
 use bincode::{Decode, Encode};
 use core::fmt;
-use std::{cell::RefCell, cmp::Ordering, rc::Rc};
+use std::{
+    cell::RefCell,
+    cmp::Ordering,
+    hash::{Hash, Hasher},
+    rc::Rc,
+};
 
-use crate::{array::DynamicArray, error::vm::VmError};
+use crate::{array::DynamicArray, error::vm::VmError, object::Object};
 
 pub type SharedValue = Rc<RefCell<VmValue>>;
 
@@ -13,6 +18,7 @@ pub enum VmValue {
     String(String),
     Boolean(bool),
     DynamicArray(DynamicArray),
+    Object(Object),
     Null,
 }
 
@@ -38,6 +44,34 @@ impl VmValue {
             default => Err(VmError::AttemptToIndex(format!("{:?}", default))),
         }
     }
+
+    pub fn as_object_mut(&mut self) -> Result<&mut Object, VmError> {
+        match self {
+            VmValue::Object(v) => Ok(v),
+            default => Err(VmError::AttemptToIndex(format!("{:?}", default))),
+        }
+    }
+
+    pub fn as_object(&self) -> Result<&Object, VmError> {
+        match self {
+            VmValue::Object(v) => Ok(v),
+            default => Err(VmError::AttemptToIndex(format!("{:?}", default))),
+        }
+    }
+}
+
+impl Hash for VmValue {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        match self {
+            VmValue::Float(f) => f.to_bits().hash(state), // hash the raw bits
+            VmValue::Int(i) => i.hash(state),
+            VmValue::String(s) => s.hash(state),
+            VmValue::Boolean(b) => b.hash(state),
+            VmValue::DynamicArray(arr) => arr.hash(state),
+            VmValue::Object(obj) => obj.hash(state),
+            VmValue::Null => ().hash(state),
+        }
+    }
 }
 
 impl fmt::Display for VmValue {
@@ -46,7 +80,7 @@ impl fmt::Display for VmValue {
             VmValue::Float(v) => write!(f, "{}", v),
             VmValue::Int(v) => write!(f, "{}", v),
             VmValue::Boolean(v) => write!(f, "{}", v),
-            VmValue::String(bytes) => write!(f, "{}", bytes),
+            VmValue::String(bytes) => write!(f, "\"{}\"", bytes),
             VmValue::DynamicArray(v) => {
                 write!(f, "[")?;
                 for (i, value) in v.0.iter().enumerate() {
@@ -56,6 +90,25 @@ impl fmt::Display for VmValue {
                     }
                 }
                 write!(f, "]")
+            }
+            VmValue::Object(object) => {
+                write!(f, "{{")?;
+                let length = object.0.len();
+                if length > 0 {
+                    write!(f, " ")?;
+                }
+
+                for (i, (key, value)) in object.0.iter().enumerate() {
+                    write!(f, "[{}]: {}", key, value)?;
+                    if i < length - 1 {
+                        write!(f, ", ")?;
+                    }
+                }
+
+                if length > 0 {
+                    write!(f, " ")?;
+                }
+                write!(f, "}}")
             }
             VmValue::Null => write!(f, "null"),
         }
@@ -91,3 +144,8 @@ impl PartialEq for VmValue {
 }
 
 impl Eq for VmValue {}
+impl Ord for VmValue {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.partial_cmp(other).unwrap()
+    }
+}

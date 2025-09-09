@@ -5,6 +5,7 @@ use std::rc::Rc;
 use crate::array::DynamicArray;
 use crate::error::vm::{VmError, invalid_index_err};
 use crate::instruction::Instruction;
+use crate::object::Object;
 use crate::serde::Program;
 use crate::value::{SharedValue, VmValue};
 
@@ -203,19 +204,14 @@ impl<'a> Vm<'a> {
             DELETE_INDEXK { object, index } => {
                 self.delete_index(object, &index)?;
             }
+            NEW_OBJECT(target) => self.set_register(target, Object::new_vm_value())?,
             NEW_ARRAY(target) => self.set_register(target, DynamicArray::new_vm_value())?,
             ARRAY_PUSH { target, source } => {
                 let value = self.get_register(source)?;
-                let mut arr_value = self.get_register_mut(target)?;
-                if let Ok(arr) = arr_value.as_array_mut() {
-                    arr.0.push(value.borrow().clone());
-                }
+                self.array_push(target, value.borrow().clone())?;
             }
             ARRAY_PUSHK { target, value } => {
-                let mut arr_value = self.get_register_mut(target)?;
-                if let Ok(arr) = arr_value.as_array_mut() {
-                    arr.0.push(value);
-                }
+                self.array_push(target, value)?;
             }
             LEN { target, source } => {
                 let object_value = self.get_register(source)?;
@@ -258,8 +254,8 @@ impl<'a> Vm<'a> {
             CALL(address) => self.call(address)?,
             RETURN => self.call_return()?,
 
-            PRINT(target) => println!("{}", self.get_register(target)?.borrow()),
-            PRINTK(value) => println!("{}", value),
+            PRINT(target) => self.print_value(&self.get_register(target)?.borrow()),
+            PRINTK(value) => self.print_value(&value),
             HALT => self.pc = self.instruction_count(),
         }
         Ok(())
@@ -292,6 +288,8 @@ impl<'a> Vm<'a> {
             } else {
                 return Err(invalid_index_err(index.clone()));
             }
+        } else if let Ok(obj) = object_value.borrow().as_object() {
+            return Ok(obj.index(index));
         } else if let VmValue::String(s) = object_value.borrow().clone() {
             if let VmValue::Int(i) = index {
                 return Ok(index_string(s, *i as usize));
@@ -306,6 +304,8 @@ impl<'a> Vm<'a> {
         let object_value = self.get_register(object)?;
         if let Ok(arr) = object_value.borrow().as_array() {
             return Ok(arr.index(index));
+        } else if let Ok(obj) = object_value.borrow().as_object() {
+            return Ok(obj.index(&VmValue::Int(index as i32)));
         } else if let VmValue::String(s) = object_value.borrow().clone() {
             return Ok(index_string(s, index));
         }
@@ -330,6 +330,8 @@ impl<'a> Vm<'a> {
             } else {
                 return Err(invalid_index_err(index.clone()));
             }
+        } else if let Ok(obj) = object_value.as_object_mut() {
+            obj.new_index_rc(index.clone(), source_value);
         }
         Ok(())
     }
@@ -344,6 +346,8 @@ impl<'a> Vm<'a> {
         let mut object_value = self.get_register_mut(object)?;
         if let Ok(arr) = object_value.as_array_mut() {
             arr.new_index_rc(index, source_value);
+        } else if let Ok(obj) = object_value.as_object_mut() {
+            obj.new_index_rc(VmValue::Int(index as i32), source_value);
         }
         Ok(())
     }
@@ -360,6 +364,8 @@ impl<'a> Vm<'a> {
             } else {
                 return Err(invalid_index_err(index.clone()));
             }
+        } else if let Ok(obj) = object_value.as_object_mut() {
+            obj.new_index(index.clone(), VmValue::Null);
         }
         Ok(())
     }
@@ -368,8 +374,23 @@ impl<'a> Vm<'a> {
         let mut object_value = self.get_register_mut(object)?;
         if let Ok(arr) = object_value.as_array_mut() {
             arr.new_index(index, VmValue::Null);
+        } else if let Ok(obj) = object_value.as_object_mut() {
+            obj.new_index(VmValue::Int(index as i32), VmValue::Null);
         }
         Ok(())
+    }
+
+    fn array_push(&mut self, target: usize, value: VmValue) -> Result<(), VmError> {
+        let mut arr_value = self.get_register_mut(target)?;
+        if let Ok(arr) = arr_value.as_array_mut() {
+            arr.0.push(value);
+            Ok(())
+        } else {
+            Err(VmError::OperandTypeMismatch {
+                expected: "Array".to_string(),
+                actual: format!("{}", arr_value),
+            })
+        }
     }
 
     fn incrementor(
@@ -564,6 +585,14 @@ impl<'a> Vm<'a> {
 
     fn set_register(&mut self, index: usize, value: VmValue) -> Result<(), VmError> {
         self.set_register_rc(index, Rc::new(RefCell::new(value)))
+    }
+
+    fn print_value(&self, value: &VmValue) -> () {
+        if let VmValue::String(s) = value {
+            println!("{}", s);
+        } else {
+            println!("{}", value);
+        }
     }
 
     fn jump(&mut self, address: usize) -> Result<(), VmError> {
