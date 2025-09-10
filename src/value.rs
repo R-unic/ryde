@@ -81,20 +81,34 @@ impl fmt::Display for VmValue {
             VmValue::Int(v) => write!(f, "{}", v),
             VmValue::Boolean(v) => write!(f, "{}", v),
             VmValue::String(bytes) => write!(f, "\"{}\"", bytes),
-            VmValue::DynamicArray(v) => {
+            VmValue::DynamicArray(arr) => {
                 write!(f, "[")?;
-                for (i, value) in v.0.iter().enumerate() {
+
+                let length = arr.0.len();
+                let is_long = length >= 3;
+                if is_long {
+                    write!(f, "\n\t")?;
+                }
+                for (i, value) in arr.0.iter().enumerate() {
                     write!(f, "{}", value)?;
-                    if i < v.0.len() - 1 {
+                    if i < arr.0.len() - 1 {
                         write!(f, ", ")?;
+                        if is_long {
+                            write!(f, "\n\t")?;
+                        }
                     }
                 }
+                write!(f, "\n")?;
                 write!(f, "]")
             }
             VmValue::Object(object) => {
                 write!(f, "{{")?;
+
                 let length = object.0.len();
-                if length > 0 {
+                let is_long = length >= 3;
+                if is_long {
+                    write!(f, "\n")?;
+                } else if length > 0 {
                     write!(f, " ")?;
                 }
 
@@ -102,10 +116,15 @@ impl fmt::Display for VmValue {
                     write!(f, "[{}]: {}", key, value)?;
                     if i < length - 1 {
                         write!(f, ", ")?;
+                        if is_long {
+                            write!(f, "\n\t")?;
+                        }
                     }
                 }
 
-                if length > 0 {
+                if is_long {
+                    write!(f, "\n")?;
+                } else if length > 0 {
                     write!(f, " ")?;
                 }
                 write!(f, "}}")
