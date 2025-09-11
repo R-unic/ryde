@@ -142,6 +142,18 @@ pub enum Instruction {
     JZ { source: usize, address: usize },
     /// Jump to instruction at `address` if the value of `source` is truthy
     JNZ { source: usize, address: usize },
+    /// Jump to instruction at `address` if value of `a` is less than the value of `b`
+    JLT { a: usize, b: usize, address: usize },
+    /// Jump to instruction at `address` if value of `a` is less than or equal to the value of `b`
+    JLTE { a: usize, b: usize, address: usize },
+    /// Jump to instruction at `address` if value of `a` is greater than the value of `b`
+    JGT { a: usize, b: usize, address: usize },
+    /// Jump to instruction at `address` if value of `a` is greater than or equal to the value of `b`
+    JGTE { a: usize, b: usize, address: usize },
+    /// Jump to instruction at `address` if values of `a` and `b` are equal
+    JEQ { a: usize, b: usize, address: usize },
+    /// Jump to instruction at `address` if values of `a` and `b` are not equal
+    JNEQ { a: usize, b: usize, address: usize },
 
     /// Store the value of register `target` into variable `name`
     STORE { source: usize, name: String },

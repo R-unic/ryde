@@ -242,6 +242,48 @@ impl<'a> Vm<'a> {
                     self.jump(address)?
                 }
             }
+            JLT { a, b, address } => {
+                let a_value = self.get_register(a)?;
+                let b_value = self.get_register(b)?;
+                if *a_value.borrow() < *b_value.borrow() {
+                    self.jump(address)?
+                }
+            }
+            JLTE { a, b, address } => {
+                let a_value = self.get_register(a)?;
+                let b_value = self.get_register(b)?;
+                if *a_value.borrow() <= *b_value.borrow() {
+                    self.jump(address)?
+                }
+            }
+            JGT { a, b, address } => {
+                let a_value = self.get_register(a)?;
+                let b_value = self.get_register(b)?;
+                if *a_value.borrow() > *b_value.borrow() {
+                    self.jump(address)?
+                }
+            }
+            JGTE { a, b, address } => {
+                let a_value = self.get_register(a)?;
+                let b_value = self.get_register(b)?;
+                if *a_value.borrow() >= *b_value.borrow() {
+                    self.jump(address)?
+                }
+            }
+            JEQ { a, b, address } => {
+                let a_value = self.get_register(a)?;
+                let b_value = self.get_register(b)?;
+                if *a_value.borrow() == *b_value.borrow() {
+                    self.jump(address)?
+                }
+            }
+            JNEQ { a, b, address } => {
+                let a_value = self.get_register(a)?;
+                let b_value = self.get_register(b)?;
+                if *a_value.borrow() != *b_value.borrow() {
+                    self.jump(address)?
+                }
+            }
             STORE { source, name } => {
                 let value = self.get_register(source)?;
                 self.set_variable_rc(name, value);
