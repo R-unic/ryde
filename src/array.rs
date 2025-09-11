@@ -1,19 +1,19 @@
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, hash::Hash, rc::Rc};
 
 use bincode::{Decode, Encode};
 
 use crate::value::{SharedValue, VmValue};
 
-#[derive(Encode, Decode, Hash, Eq, Ord, PartialEq, PartialOrd, Debug, Clone)]
-pub struct DynamicArray(pub Vec<VmValue>);
+#[derive(Encode, Decode, Eq, Ord, PartialEq, PartialOrd, Debug, Clone)]
+pub struct DynamicArray(pub Rc<RefCell<Vec<VmValue>>>);
 
 impl DynamicArray {
     pub fn new() -> Self {
-        Self(Vec::new())
+        Self(Rc::new(RefCell::new(Vec::new())))
     }
 
     pub fn new_vm_value() -> VmValue {
-        VmValue::DynamicArray(Rc::new(RefCell::new(Self::new())))
+        VmValue::DynamicArray(DynamicArray::new())
     }
 
     pub fn new_index_rc(&mut self, index: usize, value: SharedValue) -> () {
@@ -22,24 +22,36 @@ impl DynamicArray {
 
     pub fn new_index(&mut self, index: usize, value: VmValue) -> () {
         self.check_bounds(index);
-        self.0[index] = value;
+
+        let mut vec = self.0.borrow_mut();
+        vec[index] = value;
     }
 
     pub fn index(&self, index: usize) -> VmValue {
         if self.out_of_bounds(index) {
             VmValue::Null
         } else {
-            self.0[index].clone()
+            self.0.borrow()[index].clone()
         }
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.borrow().len()
     }
 
     fn check_bounds(&mut self, index: usize) {
         if self.out_of_bounds(index) {
-            self.0.resize(index + 1, VmValue::Null);
+            self.0.borrow_mut().resize(index + 1, VmValue::Null);
         }
     }
 
     fn out_of_bounds(&self, index: usize) -> bool {
-        self.0.len() <= index
+        self.len() <= index
+    }
+}
+
+impl Hash for DynamicArray {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.0.borrow().hash(state);
     }
 }

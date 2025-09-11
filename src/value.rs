@@ -1,8 +1,9 @@
 use bincode::{Decode, Encode};
 use core::fmt;
 use std::{
-    cell::{Ref, RefCell, RefMut},
+    cell::RefCell,
     cmp::Ordering,
+    fmt::Formatter,
     hash::{Hash, Hasher},
     rc::Rc,
 };
@@ -17,8 +18,8 @@ pub enum VmValue {
     Int(i32),
     String(String),
     Boolean(bool),
-    DynamicArray(Rc<RefCell<DynamicArray>>),
-    Object(Rc<RefCell<Object>>),
+    DynamicArray(DynamicArray),
+    Object(Object),
     Null,
 }
 
@@ -31,31 +32,107 @@ impl VmValue {
         }
     }
 
-    pub fn as_array_mut(&mut self) -> Result<RefMut<'_, DynamicArray>, VmError> {
+    pub fn as_array_mut(&mut self) -> Result<&mut DynamicArray, VmError> {
         match self {
-            VmValue::DynamicArray(v) => Ok(v.borrow_mut()),
+            VmValue::DynamicArray(v) => Ok(v),
             default => Err(VmError::AttemptToIndex(format!("{:?}", default))),
         }
     }
 
-    pub fn as_array(&self) -> Result<Ref<'_, DynamicArray>, VmError> {
+    pub fn as_array(&self) -> Result<&DynamicArray, VmError> {
         match self {
-            VmValue::DynamicArray(v) => Ok(v.borrow()),
+            VmValue::DynamicArray(v) => Ok(v),
             default => Err(VmError::AttemptToIndex(format!("{:?}", default))),
         }
     }
 
-    pub fn as_object_mut(&mut self) -> Result<RefMut<'_, Object>, VmError> {
+    pub fn as_object_mut(&mut self) -> Result<&mut Object, VmError> {
         match self {
-            VmValue::Object(v) => Ok(v.borrow_mut()),
+            VmValue::Object(v) => Ok(v),
             default => Err(VmError::AttemptToIndex(format!("{:?}", default))),
         }
     }
 
-    pub fn as_object(&self) -> Result<Ref<'_, Object>, VmError> {
+    pub fn as_object(&self) -> Result<&Object, VmError> {
         match self {
-            VmValue::Object(v) => Ok(v.borrow()),
+            VmValue::Object(v) => Ok(v),
             default => Err(VmError::AttemptToIndex(format!("{:?}", default))),
+        }
+    }
+
+    fn inspect(&self, f: &mut Formatter<'_>, indent: usize) -> fmt::Result {
+        match self {
+            VmValue::Float(v) => write!(f, "{}", v),
+            VmValue::Int(v) => write!(f, "{}", v),
+            VmValue::Boolean(v) => write!(f, "{}", v),
+            VmValue::String(bytes) => write!(f, "\"{}\"", bytes),
+            VmValue::DynamicArray(arr) => {
+                write!(f, "[")?;
+
+                let length = arr.0.borrow().len();
+                let is_long = length >= 3;
+                if is_long {
+                    write!(f, "\n")?;
+                    write_tab(f, indent)?;
+                }
+                for (i, value) in arr.0.borrow().iter().enumerate() {
+                    if is_long {
+                        value.inspect(f, indent + 1)?;
+                    } else {
+                        write!(f, "{}", value)?;
+                    }
+                    if i < length - 1 {
+                        write!(f, ", ")?;
+                        if is_long {
+                            write!(f, "\n")?;
+                            write_tab(f, indent)?;
+                        }
+                    }
+                }
+                if is_long {
+                    write!(f, "\n")?;
+                    write_tab(f, indent - 1)?;
+                }
+                write!(f, "]")
+            }
+            VmValue::Object(object) => {
+                write!(f, "{{")?;
+
+                let length = object.0.borrow().len();
+                let is_long = length >= 3;
+                if is_long {
+                    write!(f, "\n")?;
+                    write_tab(f, indent)?;
+                } else if length > 0 {
+                    write!(f, " ")?;
+                }
+
+                for (i, (key, value)) in object.0.borrow().iter().enumerate() {
+                    write!(f, "[{}]: ", key)?;
+                    if is_long {
+                        value.inspect(f, indent + 1)?;
+                    } else {
+                        write!(f, "{}", value)?;
+                    }
+
+                    if i < length - 1 {
+                        write!(f, ", ")?;
+                        if is_long {
+                            write!(f, "\n")?;
+                            write_tab(f, indent)?;
+                        }
+                    }
+                }
+
+                if is_long {
+                    write!(f, "\n")?;
+                    write_tab(f, indent - 1)?;
+                } else if length > 0 {
+                    write!(f, " ")?;
+                }
+                write!(f, "}}")
+            }
+            VmValue::Null => write!(f, "null"),
         }
     }
 }
@@ -67,70 +144,21 @@ impl Hash for VmValue {
             VmValue::Int(i) => i.hash(state),
             VmValue::String(s) => s.hash(state),
             VmValue::Boolean(b) => b.hash(state),
-            VmValue::DynamicArray(arr) => arr.borrow().hash(state),
-            VmValue::Object(obj) => obj.borrow().hash(state),
+            VmValue::DynamicArray(arr) => arr.hash(state),
+            VmValue::Object(obj) => obj.hash(state),
             VmValue::Null => ().hash(state),
         }
     }
 }
 
+const TAB: &str = "  ";
+fn write_tab(f: &mut Formatter<'_>, indent: usize) -> Result<(), std::fmt::Error> {
+    write!(f, "{}", TAB.repeat(indent))
+}
+
 impl fmt::Display for VmValue {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            VmValue::Float(v) => write!(f, "{}", v),
-            VmValue::Int(v) => write!(f, "{}", v),
-            VmValue::Boolean(v) => write!(f, "{}", v),
-            VmValue::String(bytes) => write!(f, "\"{}\"", bytes),
-            VmValue::DynamicArray(arr) => {
-                write!(f, "[")?;
-
-                let length = arr.borrow().0.len();
-                let is_long = length >= 3;
-                if is_long {
-                    write!(f, "\n\t")?;
-                }
-                for (i, value) in arr.borrow().0.iter().enumerate() {
-                    write!(f, "{}", value)?;
-                    if i < length - 1 {
-                        write!(f, ", ")?;
-                        if is_long {
-                            write!(f, "\n\t")?;
-                        }
-                    }
-                }
-                write!(f, "\n")?;
-                write!(f, "]")
-            }
-            VmValue::Object(object) => {
-                write!(f, "{{")?;
-
-                let length = object.borrow().0.len();
-                let is_long = length >= 3;
-                if is_long {
-                    write!(f, "\n")?;
-                } else if length > 0 {
-                    write!(f, " ")?;
-                }
-
-                for (i, (key, value)) in object.borrow().0.iter().enumerate() {
-                    write!(f, "[{}]: {}", key, value)?;
-                    if i < length - 1 {
-                        write!(f, ", ")?;
-                        if is_long {
-                            write!(f, "\n\t")?;
-                        }
-                    }
-                }
-
-                if is_long {
-                    write!(f, "\n")?;
-                } else if length > 0 {
-                    write!(f, " ")?;
-                }
-                write!(f, "}}")
-            }
-            VmValue::Null => write!(f, "null"),
-        }
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        self.inspect(f, 1)
     }
 }
 

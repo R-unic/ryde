@@ -328,7 +328,7 @@ impl<'a> Vm<'a> {
                 let object_value = self.get_register(source)?;
                 let object_ref = object_value.borrow();
                 let length = if let Ok(arr) = object_ref.as_array() {
-                    Some(arr.0.len())
+                    Some(arr.len())
                 } else if let VmValue::String(s) = object_ref.clone() {
                     Some(s.len())
                 } else {
@@ -519,13 +519,13 @@ impl<'a> Vm<'a> {
     fn new_index(&mut self, object: usize, index: &VmValue, source: usize) -> Result<(), VmError> {
         let source_value = self.get_register(source)?;
         let mut object_value = self.get_register_mut(object)?;
-        if let Ok(mut arr) = object_value.as_array_mut() {
+        if let Ok(arr) = object_value.as_array_mut() {
             if let VmValue::Int(i) = index {
                 arr.new_index_rc(*i as usize, source_value);
             } else {
                 return Err(invalid_index_err(index.clone()));
             }
-        } else if let Ok(mut obj) = object_value.as_object_mut() {
+        } else if let Ok(obj) = object_value.as_object_mut() {
             obj.new_index_rc(index.clone(), source_value);
         }
         Ok(())
@@ -539,9 +539,9 @@ impl<'a> Vm<'a> {
     ) -> Result<(), VmError> {
         let source_value = self.get_register(source)?;
         let mut object_value = self.get_register_mut(object)?;
-        if let Ok(mut arr) = object_value.as_array_mut() {
+        if let Ok(arr) = object_value.as_array_mut() {
             arr.new_index_rc(index, source_value);
-        } else if let Ok(mut obj) = object_value.as_object_mut() {
+        } else if let Ok(obj) = object_value.as_object_mut() {
             obj.new_index_rc(VmValue::Int(index as i32), source_value);
         }
         Ok(())
@@ -553,13 +553,13 @@ impl<'a> Vm<'a> {
 
     fn delete_index(&mut self, object: usize, index: &VmValue) -> Result<(), VmError> {
         let mut object_value = self.get_register_mut(object)?;
-        if let Ok(mut arr) = object_value.as_array_mut() {
+        if let Ok(arr) = object_value.as_array_mut() {
             if let VmValue::Int(i) = index {
                 arr.new_index(*i as usize, VmValue::Null);
             } else {
                 return Err(invalid_index_err(index.clone()));
             }
-        } else if let Ok(mut obj) = object_value.as_object_mut() {
+        } else if let Ok(obj) = object_value.as_object_mut() {
             obj.new_index(index.clone(), VmValue::Null);
         }
         Ok(())
@@ -567,9 +567,9 @@ impl<'a> Vm<'a> {
 
     fn delete_index_known(&mut self, object: usize, index: usize) -> Result<(), VmError> {
         let mut object_value = self.get_register_mut(object)?;
-        if let Ok(mut arr) = object_value.as_array_mut() {
+        if let Ok(arr) = object_value.as_array_mut() {
             arr.new_index(index, VmValue::Null);
-        } else if let Ok(mut obj) = object_value.as_object_mut() {
+        } else if let Ok(obj) = object_value.as_object_mut() {
             obj.new_index(VmValue::Int(index as i32), VmValue::Null);
         }
         Ok(())
@@ -577,8 +577,8 @@ impl<'a> Vm<'a> {
 
     fn array_push(&mut self, target: usize, value: VmValue) -> Result<(), VmError> {
         let mut arr_value = self.get_register_mut(target)?;
-        if let Ok(mut arr) = arr_value.as_array_mut() {
-            arr.0.push(value);
+        if let Ok(arr) = arr_value.as_array_mut() {
+            arr.0.borrow_mut().push(value);
             Ok(())
         } else {
             Err(VmError::OperandTypeMismatch {
