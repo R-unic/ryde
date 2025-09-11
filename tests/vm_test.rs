@@ -15,7 +15,7 @@ fn test_loadv() -> () {
     let mut vm = Vm::new(&program, 4);
     vm.run().unwrap();
 
-    assert_eq!(vm.registers[0], VmValue::Int(420));
+    assert_eq!(*vm.registers[0].borrow(), VmValue::Int(420));
 }
 
 #[test]
@@ -40,7 +40,7 @@ fn test_add() -> () {
     let mut vm = Vm::new(&program, 4);
     vm.run().unwrap();
 
-    assert_eq!(vm.registers[0], VmValue::Int(25));
+    assert_eq!(*vm.registers[0].borrow(), VmValue::Int(25));
 }
 
 #[test]
@@ -65,7 +65,7 @@ fn test_sub() -> () {
     let mut vm = Vm::new(&program, 4);
     vm.run().unwrap();
 
-    assert_eq!(vm.registers[0], VmValue::Int(42));
+    assert_eq!(*vm.registers[0].borrow(), VmValue::Int(42));
 }
 
 #[test]
@@ -90,7 +90,7 @@ fn test_mul() -> () {
     let mut vm = Vm::new(&program, 4);
     vm.run().unwrap();
 
-    assert_eq!(vm.registers[0], VmValue::Int(69));
+    assert_eq!(*vm.registers[0].borrow(), VmValue::Int(69));
 }
 
 #[test]
@@ -115,7 +115,7 @@ fn test_div() -> () {
     let mut vm = Vm::new(&program, 4);
     vm.run().unwrap();
 
-    assert_eq!(vm.registers[0], VmValue::Int(69));
+    assert_eq!(*vm.registers[0].borrow(), VmValue::Int(69));
 }
 
 #[test]
@@ -140,8 +140,8 @@ fn test_jump() -> () {
     let mut vm = Vm::new(&program, 4);
     vm.run().unwrap();
 
-    assert_eq!(vm.registers[0], VmValue::Int(-69));
-    assert_eq!(vm.registers[1], VmValue::Int(420));
+    assert_eq!(*vm.registers[0].borrow(), VmValue::Int(-69));
+    assert_eq!(*vm.registers[1].borrow(), VmValue::Int(420));
 }
 
 #[test]
@@ -169,7 +169,7 @@ fn test_conditional_jump_taken() -> () {
     let mut vm = Vm::new(&program, 4);
     vm.run().unwrap();
 
-    assert_eq!(vm.registers[1], VmValue::Int(420));
+    assert_eq!(*vm.registers[1].borrow(), VmValue::Int(420));
 }
 
 #[test]
@@ -197,7 +197,7 @@ fn test_conditional_jump_not_taken() -> () {
     let mut vm = Vm::new(&program, 4);
     vm.run().unwrap();
 
-    assert_eq!(vm.registers[1], VmValue::Int(420));
+    assert_eq!(*vm.registers[1].borrow(), VmValue::Int(420));
 }
 
 #[test]
@@ -234,8 +234,8 @@ fn test_store_and_load() -> () {
     let mut vm = Vm::new(&program, 4);
     vm.run().unwrap();
 
-    assert_eq!(vm.registers[1], VmValue::Int(123));
-    assert_eq!(vm.variables.get("x"), Some(&VmValue::Int(123)));
+    assert_eq!(*vm.registers[1].borrow(), VmValue::Int(123));
+    assert_eq!(*vm.variables.get("x").unwrap().borrow(), VmValue::Int(123));
 }
 
 #[test]
@@ -261,9 +261,9 @@ fn test_call_and_return() {
     let mut vm = Vm::new(&program, 4);
     vm.run().unwrap();
 
-    assert_eq!(vm.registers[0], VmValue::Int(10));
-    assert_eq!(vm.registers[1], VmValue::Int(420));
-    assert_eq!(vm.registers[2], VmValue::Int(100));
+    assert_eq!(*vm.registers[0].borrow(), VmValue::Int(10));
+    assert_eq!(*vm.registers[1].borrow(), VmValue::Int(420));
+    assert_eq!(*vm.registers[2].borrow(), VmValue::Int(100));
     assert_eq!(vm.call_stack.len(), 0);
 }
 
@@ -312,7 +312,7 @@ fn test_halt() -> () {
     let mut vm = Vm::new(&program, 4);
     vm.run().unwrap();
 
-    assert_eq!(vm.registers[0], VmValue::Boolean(true));
+    assert_eq!(*vm.registers[0].borrow(), VmValue::Boolean(true));
 }
 
 #[test]
