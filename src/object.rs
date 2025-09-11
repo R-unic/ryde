@@ -1,4 +1,4 @@
-use std::{cmp::Ordering, collections::HashMap, hash::Hash};
+use std::{cell::RefCell, cmp::Ordering, collections::HashMap, hash::Hash, rc::Rc};
 
 use bincode::{Decode, Encode};
 
@@ -13,7 +13,7 @@ impl Object {
     }
 
     pub fn new_vm_value() -> VmValue {
-        VmValue::Object(Self::new())
+        VmValue::Object(Rc::new(RefCell::new(Self::new())))
     }
 
     pub fn new_index_rc(&mut self, index: VmValue, value: SharedValue) -> () {

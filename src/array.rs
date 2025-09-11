@@ -1,3 +1,5 @@
+use std::{cell::RefCell, rc::Rc};
+
 use bincode::{Decode, Encode};
 
 use crate::value::{SharedValue, VmValue};
@@ -11,7 +13,7 @@ impl DynamicArray {
     }
 
     pub fn new_vm_value() -> VmValue {
-        VmValue::DynamicArray(Self::new())
+        VmValue::DynamicArray(Rc::new(RefCell::new(Self::new())))
     }
 
     pub fn new_index_rc(&mut self, index: usize, value: SharedValue) -> () {

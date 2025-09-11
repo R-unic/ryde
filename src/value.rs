@@ -1,7 +1,7 @@
 use bincode::{Decode, Encode};
 use core::fmt;
 use std::{
-    cell::RefCell,
+    cell::{Ref, RefCell, RefMut},
     cmp::Ordering,
     hash::{Hash, Hasher},
     rc::Rc,
@@ -17,8 +17,8 @@ pub enum VmValue {
     Int(i32),
     String(String),
     Boolean(bool),
-    DynamicArray(DynamicArray),
-    Object(Object),
+    DynamicArray(Rc<RefCell<DynamicArray>>),
+    Object(Rc<RefCell<Object>>),
     Null,
 }
 
@@ -31,30 +31,30 @@ impl VmValue {
         }
     }
 
-    pub fn as_array_mut(&mut self) -> Result<&mut DynamicArray, VmError> {
+    pub fn as_array_mut(&mut self) -> Result<RefMut<'_, DynamicArray>, VmError> {
         match self {
-            VmValue::DynamicArray(v) => Ok(v),
+            VmValue::DynamicArray(v) => Ok(v.borrow_mut()),
             default => Err(VmError::AttemptToIndex(format!("{:?}", default))),
         }
     }
 
-    pub fn as_array(&self) -> Result<&DynamicArray, VmError> {
+    pub fn as_array(&self) -> Result<Ref<'_, DynamicArray>, VmError> {
         match self {
-            VmValue::DynamicArray(v) => Ok(v),
+            VmValue::DynamicArray(v) => Ok(v.borrow()),
             default => Err(VmError::AttemptToIndex(format!("{:?}", default))),
         }
     }
 
-    pub fn as_object_mut(&mut self) -> Result<&mut Object, VmError> {
+    pub fn as_object_mut(&mut self) -> Result<RefMut<'_, Object>, VmError> {
         match self {
-            VmValue::Object(v) => Ok(v),
+            VmValue::Object(v) => Ok(v.borrow_mut()),
             default => Err(VmError::AttemptToIndex(format!("{:?}", default))),
         }
     }
 
-    pub fn as_object(&self) -> Result<&Object, VmError> {
+    pub fn as_object(&self) -> Result<Ref<'_, Object>, VmError> {
         match self {
-            VmValue::Object(v) => Ok(v),
+            VmValue::Object(v) => Ok(v.borrow()),
             default => Err(VmError::AttemptToIndex(format!("{:?}", default))),
         }
     }
@@ -67,8 +67,8 @@ impl Hash for VmValue {
             VmValue::Int(i) => i.hash(state),
             VmValue::String(s) => s.hash(state),
             VmValue::Boolean(b) => b.hash(state),
-            VmValue::DynamicArray(arr) => arr.hash(state),
-            VmValue::Object(obj) => obj.hash(state),
+            VmValue::DynamicArray(arr) => arr.borrow().hash(state),
+            VmValue::Object(obj) => obj.borrow().hash(state),
             VmValue::Null => ().hash(state),
         }
     }
@@ -84,14 +84,14 @@ impl fmt::Display for VmValue {
             VmValue::DynamicArray(arr) => {
                 write!(f, "[")?;
 
-                let length = arr.0.len();
+                let length = arr.borrow().0.len();
                 let is_long = length >= 3;
                 if is_long {
                     write!(f, "\n\t")?;
                 }
-                for (i, value) in arr.0.iter().enumerate() {
+                for (i, value) in arr.borrow().0.iter().enumerate() {
                     write!(f, "{}", value)?;
-                    if i < arr.0.len() - 1 {
+                    if i < length - 1 {
                         write!(f, ", ")?;
                         if is_long {
                             write!(f, "\n\t")?;
@@ -104,7 +104,7 @@ impl fmt::Display for VmValue {
             VmValue::Object(object) => {
                 write!(f, "{{")?;
 
-                let length = object.0.len();
+                let length = object.borrow().0.len();
                 let is_long = length >= 3;
                 if is_long {
                     write!(f, "\n")?;
@@ -112,7 +112,7 @@ impl fmt::Display for VmValue {
                     write!(f, " ")?;
                 }
 
-                for (i, (key, value)) in object.0.iter().enumerate() {
+                for (i, (key, value)) in object.borrow().0.iter().enumerate() {
                     write!(f, "[{}]: {}", key, value)?;
                     if i < length - 1 {
                         write!(f, ", ")?;
