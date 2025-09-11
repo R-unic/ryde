@@ -16,41 +16,147 @@ pub enum Instruction {
 
     /// target = a + b
     ADD { target: usize, a: usize, b: usize },
+    /// target = a + b
+    ADDK {
+        target: usize,
+        a_value: VmValue,
+        b: usize,
+    },
     /// target = a - b
     SUB { target: usize, a: usize, b: usize },
+    /// target = a - b
+    SUBK {
+        target: usize,
+        a_value: VmValue,
+        b: usize,
+    },
     /// target = a * b
     MUL { target: usize, a: usize, b: usize },
+    /// target = a * b
+    MULK {
+        target: usize,
+        a_value: VmValue,
+        b: usize,
+    },
     /// target = a / b
     DIV { target: usize, a: usize, b: usize },
+    /// target = a / b
+    DIVK {
+        target: usize,
+        a_value: VmValue,
+        b: usize,
+    },
     /// target = a // b
     IDIV { target: usize, a: usize, b: usize },
+    /// target = a // b
+    IDIVK {
+        target: usize,
+        a_value: VmValue,
+        b: usize,
+    },
     /// target = a ^ b
     POW { target: usize, a: usize, b: usize },
+    /// target = a ^ b
+    POWK {
+        target: usize,
+        a_value: VmValue,
+        b: usize,
+    },
     /// target = a % b
     MOD { target: usize, a: usize, b: usize },
+    /// target = a % b
+    MODK {
+        target: usize,
+        a_value: VmValue,
+        b: usize,
+    },
     /// target = a ~ b
     BXOR { target: usize, a: usize, b: usize },
+    /// target = a ~ b
+    BXORK {
+        target: usize,
+        a_value: VmValue,
+        b: usize,
+    },
     /// target = a & b
     BAND { target: usize, a: usize, b: usize },
+    /// target = a & b
+    BANDK {
+        target: usize,
+        a_value: VmValue,
+        b: usize,
+    },
     /// target = a | b
     BOR { target: usize, a: usize, b: usize },
+    /// target = a | b
+    BORK {
+        target: usize,
+        a_value: VmValue,
+        b: usize,
+    },
     /// target = a << b
     BLSH { target: usize, a: usize, b: usize },
+    /// target = a <<b
+    BLSHK {
+        target: usize,
+        a_value: VmValue,
+        b: usize,
+    },
     /// target = a >>> b
     BRSH { target: usize, a: usize, b: usize },
+    /// target = a >>> b
+    BRSHK {
+        target: usize,
+        a_value: VmValue,
+        b: usize,
+    },
     /// target = a >> b
     BARSH { target: usize, a: usize, b: usize },
+    /// target = a >> b
+    BARSHK {
+        target: usize,
+        a_value: VmValue,
+        b: usize,
+    },
     /// target = ~operand
     BNOT { target: usize, operand: usize },
+    /// target = ~operand
+    BNOTK {
+        target: usize,
+        operand_value: VmValue,
+    },
     /// target = -operand
     NEGATE { target: usize, operand: usize },
+    /// target = -operand
+    NEGATEK {
+        target: usize,
+        operand_value: VmValue,
+    },
 
     /// target = a && b
     AND { target: usize, a: usize, b: usize },
+    /// target = a && b
+    ANDK {
+        target: usize,
+        a_value: VmValue,
+        b: usize,
+    },
     /// target = a || b
     OR { target: usize, a: usize, b: usize },
+    /// target = a || b
+    ORK {
+        target: usize,
+        a_value: VmValue,
+        b: usize,
+    },
     /// target = a ?? b
     NULL_COALESCE { target: usize, a: usize, b: usize },
+    /// target = a ?? b
+    NULL_COALESCEK {
+        target: usize,
+        a_value: VmValue,
+        b: usize,
+    },
     /// target = a == b
     EQ { target: usize, a: usize, b: usize },
     /// target = a != b
@@ -65,6 +171,11 @@ pub enum Instruction {
     GTE { target: usize, a: usize, b: usize },
     /// target = !operand
     NOT { target: usize, operand: usize },
+    /// target = !operand
+    NOTK {
+        target: usize,
+        operand_value: VmValue,
+    },
     /// Increment variable `name` by 1, and store the result in `target` if specified
     INC {
         target: Option<usize>,
