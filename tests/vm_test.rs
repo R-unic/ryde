@@ -203,6 +203,144 @@ fn test_divk() -> () {
 }
 
 #[test]
+fn test_idiv() -> () {
+    let program = Program::from_instructions(vec![
+        Instruction::LOADV {
+            target: 0,
+            value: VmValue::Int(25),
+        },
+        Instruction::LOADV {
+            target: 1,
+            value: VmValue::Int(4),
+        },
+        Instruction::IDIV {
+            target: 0,
+            a: 0,
+            b: 1,
+        },
+        Instruction::HALT,
+    ]);
+
+    let mut vm = Vm::new(&program, 4);
+    vm.run().unwrap();
+
+    assert_eq!(*vm.registers[0].borrow(), VmValue::Int(6));
+}
+
+#[test]
+fn test_idivk() -> () {
+    let program = Program::from_instructions(vec![
+        Instruction::LOADV {
+            target: 0,
+            value: VmValue::Int(4),
+        },
+        Instruction::IDIVK {
+            target: 0,
+            a_value: VmValue::Int(25),
+            b: 0,
+        },
+        Instruction::HALT,
+    ]);
+
+    let mut vm = Vm::new(&program, 4);
+    vm.run().unwrap();
+
+    assert_eq!(*vm.registers[0].borrow(), VmValue::Int(6));
+}
+
+#[test]
+fn test_pow() -> () {
+    let program = Program::from_instructions(vec![
+        Instruction::LOADV {
+            target: 0,
+            value: VmValue::Int(9),
+        },
+        Instruction::LOADV {
+            target: 1,
+            value: VmValue::Int(2),
+        },
+        Instruction::POW {
+            target: 0,
+            a: 0,
+            b: 1,
+        },
+        Instruction::HALT,
+    ]);
+
+    let mut vm = Vm::new(&program, 4);
+    vm.run().unwrap();
+
+    assert_eq!(*vm.registers[0].borrow(), VmValue::Int(81));
+}
+
+#[test]
+fn test_powk() -> () {
+    let program = Program::from_instructions(vec![
+        Instruction::LOADV {
+            target: 0,
+            value: VmValue::Int(2),
+        },
+        Instruction::POWK {
+            target: 0,
+            a_value: VmValue::Int(9),
+            b: 0,
+        },
+        Instruction::HALT,
+    ]);
+
+    let mut vm = Vm::new(&program, 4);
+    vm.run().unwrap();
+
+    assert_eq!(*vm.registers[0].borrow(), VmValue::Int(81));
+}
+
+#[test]
+fn test_mod() -> () {
+    let program = Program::from_instructions(vec![
+        Instruction::LOADV {
+            target: 0,
+            value: VmValue::Int(25),
+        },
+        Instruction::LOADV {
+            target: 1,
+            value: VmValue::Int(9),
+        },
+        Instruction::MOD {
+            target: 0,
+            a: 0,
+            b: 1,
+        },
+        Instruction::HALT,
+    ]);
+
+    let mut vm = Vm::new(&program, 4);
+    vm.run().unwrap();
+
+    assert_eq!(*vm.registers[0].borrow(), VmValue::Int(7));
+}
+
+#[test]
+fn test_modk() -> () {
+    let program = Program::from_instructions(vec![
+        Instruction::LOADV {
+            target: 0,
+            value: VmValue::Int(9),
+        },
+        Instruction::MODK {
+            target: 0,
+            a_value: VmValue::Int(25),
+            b: 0,
+        },
+        Instruction::HALT,
+    ]);
+
+    let mut vm = Vm::new(&program, 4);
+    vm.run().unwrap();
+
+    assert_eq!(*vm.registers[0].borrow(), VmValue::Int(7));
+}
+
+#[test]
 fn test_jump() -> () {
     let program = Program::from_instructions(vec![
         Instruction::LOADV {
