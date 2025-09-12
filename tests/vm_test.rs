@@ -44,6 +44,27 @@ fn test_add() -> () {
 }
 
 #[test]
+fn test_addk() -> () {
+    let program = Program::from_instructions(vec![
+        Instruction::LOADV {
+            target: 0,
+            value: VmValue::Int(60),
+        },
+        Instruction::ADDK {
+            target: 0,
+            a_value: VmValue::Int(9),
+            b: 0,
+        },
+        Instruction::HALT,
+    ]);
+
+    let mut vm = Vm::new(&program, 4);
+    vm.run().unwrap();
+
+    assert_eq!(*vm.registers[0].borrow(), VmValue::Int(69));
+}
+
+#[test]
 fn test_sub() -> () {
     let program = Program::from_instructions(vec![
         Instruction::LOADV {
@@ -66,6 +87,27 @@ fn test_sub() -> () {
     vm.run().unwrap();
 
     assert_eq!(*vm.registers[0].borrow(), VmValue::Int(42));
+}
+
+#[test]
+fn test_subk() -> () {
+    let program = Program::from_instructions(vec![
+        Instruction::LOADV {
+            target: 0,
+            value: VmValue::Int(6),
+        },
+        Instruction::SUBK {
+            target: 0,
+            a_value: VmValue::Int(75),
+            b: 0,
+        },
+        Instruction::HALT,
+    ]);
+
+    let mut vm = Vm::new(&program, 4);
+    vm.run().unwrap();
+
+    assert_eq!(*vm.registers[0].borrow(), VmValue::Int(69));
 }
 
 #[test]
@@ -94,6 +136,27 @@ fn test_mul() -> () {
 }
 
 #[test]
+fn test_mulk() -> () {
+    let program = Program::from_instructions(vec![
+        Instruction::LOADV {
+            target: 0,
+            value: VmValue::Int(23),
+        },
+        Instruction::MULK {
+            target: 0,
+            a_value: VmValue::Int(3),
+            b: 0,
+        },
+        Instruction::HALT,
+    ]);
+
+    let mut vm = Vm::new(&program, 4);
+    vm.run().unwrap();
+
+    assert_eq!(*vm.registers[0].borrow(), VmValue::Int(69));
+}
+
+#[test]
 fn test_div() -> () {
     let program = Program::from_instructions(vec![
         Instruction::LOADV {
@@ -108,6 +171,27 @@ fn test_div() -> () {
             target: 0,
             a: 0,
             b: 1,
+        },
+        Instruction::HALT,
+    ]);
+
+    let mut vm = Vm::new(&program, 4);
+    vm.run().unwrap();
+
+    assert_eq!(*vm.registers[0].borrow(), VmValue::Int(69));
+}
+
+#[test]
+fn test_divk() -> () {
+    let program = Program::from_instructions(vec![
+        Instruction::LOADV {
+            target: 0,
+            value: VmValue::Int(5),
+        },
+        Instruction::DIVK {
+            target: 0,
+            a_value: VmValue::Int(345),
+            b: 0,
         },
         Instruction::HALT,
     ]);
