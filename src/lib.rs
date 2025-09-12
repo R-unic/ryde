@@ -1,3 +1,4 @@
+pub mod aot;
 pub mod array;
 pub mod error;
 pub mod instruction;
