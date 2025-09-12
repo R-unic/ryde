@@ -1,51 +1,60 @@
 use crate::aot::vreg_to_reg;
 
 const TAB: &str = "  ";
-const CONVERT_LOOP: &str = "
-convert_loop:
-    xor rdx, rdx
-    mov rax, rbx
-    div rcx                 ; rax = rax / 10, rdx = remainder
-    add dl, '0'             ; convert remainder to ASCII
-    dec rdi
-    mov [rdi], dl
-    mov rbx, rax
-    test rax, rax
-    jnz convert_loop
 
-    mov ecx, -11             ; STD_OUTPUT_HANDLE
-    call GetStdHandle        ; handle in rax
+#[derive(PartialEq, Eq)]
+pub enum AotTarget {
+    Win64,
+}
 
-    mov rcx, rax             ; handle
-    lea rdx, [rdi]           ; buffer start
-    mov r8d, 10              ; max length
-    sub rsp, 32              ; shadow space
-    lea r9, [rsp+20]         ; &written
-    xor r10, r10             ; NULL
-    call WriteConsoleA
-    add rsp, 32
-
-    xor ecx, ecx             ; exit code 0
-    call ExitProcess
-";
+impl AotTarget {
+    pub fn is_win64(&self) -> bool {
+        self == &AotTarget::Win64
+    }
+}
 
 pub struct AotState {
+    target: AotTarget,
     indent: usize,
+    closest_free_vreg: usize,
     pub print_used: bool,
     pub assembly: String,
 }
 
 impl AotState {
-    pub fn new() -> AotState {
+    pub fn new(target: AotTarget) -> AotState {
         AotState {
+            target,
             indent: 0,
+            closest_free_vreg: 0,
             print_used: false,
             assembly: String::new(),
         }
     }
 
+    pub fn alloc_vreg(&mut self, vreg: usize) -> usize {
+        self.closest_free_vreg = vreg + 1;
+        vreg
+    }
+
+    pub fn alloc_new_vreg(&mut self) -> usize {
+        let allocated = self.closest_free_vreg;
+        self.closest_free_vreg += 1;
+        allocated
+    }
+
+    pub fn alloc_reg(&mut self, vreg: usize) -> String {
+        vreg_to_reg(self.alloc_vreg(vreg))
+    }
+
+    pub fn free_vreg(&mut self, vreg: usize) -> () {
+        if vreg <= self.closest_free_vreg {
+            self.closest_free_vreg = vreg;
+        }
+    }
+
     pub fn write_loadv(&mut self, vreg: usize, src: String) -> String {
-        let reg = vreg_to_reg(vreg);
+        let reg = self.alloc_reg(vreg);
         self.write_instruction("mov", vec![reg, src])
     }
 
@@ -56,21 +65,26 @@ impl AotState {
     }
 
     pub fn write_print(&mut self, vreg: usize) -> String {
+        self.free_vreg(vreg);
         self.slice(|s| {
             let reg = vreg_to_reg(vreg);
-            s.write_instruction("mov", vec!["r12".to_string(), reg.clone()]);
+
+            if s.target.is_win64() {
+                // shadow space for win64 calling convention
+                s.write_instruction("sub", vec!["rsp".to_string(), "40".to_string()]);
+                s.write_line();
+            }
+            s.write_instruction("lea", vec!["rcx".to_string(), "[rel fmt]".to_string()]);
             s.write_line();
-            s.write_instruction("mov", vec!["rbx".to_string(), "r12".to_string()]);
+            s.write_instruction("mov", vec!["rdx".to_string(), reg]);
             s.write_line();
-            s.write_instruction("lea", vec!["rdi".to_string(), "[rel buf+9]".to_string()]);
-            s.write_line();
-            s.write_instruction("mov", vec!["rcx".to_string(), "10".to_string()]);
+            s.write_instruction("call", vec!["printf".to_string()]);
             s.write_line();
 
-            if !s.print_used {
-                s.pop_indent(); // end main indentation for the loop label
-                s.write_borrowed(CONVERT_LOOP);
-                s.print_used = true;
+            if s.target.is_win64() {
+                // restore stack
+                s.write_instruction("add", vec!["rsp".to_string(), "40".to_string()]);
+                s.write_line();
             }
         })
     }
@@ -78,13 +92,11 @@ impl AotState {
     pub fn write_header(&mut self) -> () {
         self.write_borrowed("global main");
         self.write_line();
-        self.write_extern("GetStdHandle");
-        self.write_extern("WriteConsoleA");
-        self.write_extern("ExitProcess");
+        self.write_extern("printf");
         self.write_line();
 
         self.section("data");
-        self.write_borrowed("buf db \"          \", 10");
+        self.write_borrowed("fmt db \"%d\", 10, 0");
         self.write_line();
         self.write_line();
 

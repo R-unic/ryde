@@ -1,0 +1,1 @@
+cargo run && nasm -f win64 out.asm -o out.obj && gcc out.obj -o out.exe
