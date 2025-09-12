@@ -341,6 +341,194 @@ fn test_modk() -> () {
 }
 
 #[test]
+fn test_and() -> () {
+    let program = Program::from_instructions(vec![
+        Instruction::LOADV {
+            target: 0,
+            value: VmValue::Boolean(true),
+        },
+        Instruction::LOADV {
+            target: 1,
+            value: VmValue::Boolean(false),
+        },
+        Instruction::AND {
+            target: 0,
+            a: 0,
+            b: 1,
+        },
+        Instruction::LOADV {
+            target: 1,
+            value: VmValue::Boolean(true),
+        },
+        Instruction::LOADV {
+            target: 2,
+            value: VmValue::Boolean(true),
+        },
+        Instruction::AND {
+            target: 1,
+            a: 1,
+            b: 2,
+        },
+        Instruction::LOADV {
+            target: 2,
+            value: VmValue::Boolean(false),
+        },
+        Instruction::LOADV {
+            target: 3,
+            value: VmValue::Boolean(false),
+        },
+        Instruction::AND {
+            target: 2,
+            a: 2,
+            b: 3,
+        },
+        Instruction::HALT,
+    ]);
+
+    let mut vm = Vm::new(&program, 4);
+    vm.run().unwrap();
+
+    assert_eq!(*vm.registers[0].borrow(), VmValue::Boolean(false));
+    assert_eq!(*vm.registers[1].borrow(), VmValue::Boolean(true));
+    assert_eq!(*vm.registers[2].borrow(), VmValue::Boolean(false));
+}
+
+#[test]
+fn test_andk() -> () {
+    let program = Program::from_instructions(vec![
+        Instruction::LOADV {
+            target: 0,
+            value: VmValue::Boolean(false),
+        },
+        Instruction::ANDK {
+            target: 0,
+            a_value: VmValue::Boolean(true),
+            b: 0,
+        },
+        Instruction::LOADV {
+            target: 1,
+            value: VmValue::Boolean(true),
+        },
+        Instruction::ANDK {
+            target: 1,
+            a_value: VmValue::Boolean(true),
+            b: 1,
+        },
+        Instruction::LOADV {
+            target: 2,
+            value: VmValue::Boolean(false),
+        },
+        Instruction::ANDK {
+            target: 2,
+            a_value: VmValue::Boolean(false),
+            b: 2,
+        },
+        Instruction::HALT,
+    ]);
+
+    let mut vm = Vm::new(&program, 4);
+    vm.run().unwrap();
+
+    assert_eq!(*vm.registers[0].borrow(), VmValue::Boolean(false));
+    assert_eq!(*vm.registers[1].borrow(), VmValue::Boolean(true));
+    assert_eq!(*vm.registers[2].borrow(), VmValue::Boolean(false));
+}
+
+#[test]
+fn test_or() -> () {
+    let program = Program::from_instructions(vec![
+        Instruction::LOADV {
+            target: 0,
+            value: VmValue::Boolean(true),
+        },
+        Instruction::LOADV {
+            target: 1,
+            value: VmValue::Boolean(false),
+        },
+        Instruction::OR {
+            target: 0,
+            a: 0,
+            b: 1,
+        },
+        Instruction::LOADV {
+            target: 1,
+            value: VmValue::Boolean(true),
+        },
+        Instruction::LOADV {
+            target: 2,
+            value: VmValue::Boolean(true),
+        },
+        Instruction::OR {
+            target: 1,
+            a: 1,
+            b: 2,
+        },
+        Instruction::LOADV {
+            target: 2,
+            value: VmValue::Boolean(false),
+        },
+        Instruction::LOADV {
+            target: 3,
+            value: VmValue::Boolean(false),
+        },
+        Instruction::OR {
+            target: 2,
+            a: 2,
+            b: 3,
+        },
+        Instruction::HALT,
+    ]);
+
+    let mut vm = Vm::new(&program, 4);
+    vm.run().unwrap();
+
+    assert_eq!(*vm.registers[0].borrow(), VmValue::Boolean(true));
+    assert_eq!(*vm.registers[1].borrow(), VmValue::Boolean(true));
+    assert_eq!(*vm.registers[2].borrow(), VmValue::Boolean(false));
+}
+
+#[test]
+fn test_ork() -> () {
+    let program = Program::from_instructions(vec![
+        Instruction::LOADV {
+            target: 0,
+            value: VmValue::Boolean(false),
+        },
+        Instruction::ORK {
+            target: 0,
+            a_value: VmValue::Boolean(true),
+            b: 0,
+        },
+        Instruction::LOADV {
+            target: 1,
+            value: VmValue::Boolean(true),
+        },
+        Instruction::ORK {
+            target: 1,
+            a_value: VmValue::Boolean(true),
+            b: 1,
+        },
+        Instruction::LOADV {
+            target: 2,
+            value: VmValue::Boolean(false),
+        },
+        Instruction::ORK {
+            target: 2,
+            a_value: VmValue::Boolean(false),
+            b: 2,
+        },
+        Instruction::HALT,
+    ]);
+
+    let mut vm = Vm::new(&program, 4);
+    vm.run().unwrap();
+
+    assert_eq!(*vm.registers[0].borrow(), VmValue::Boolean(true));
+    assert_eq!(*vm.registers[1].borrow(), VmValue::Boolean(true));
+    assert_eq!(*vm.registers[2].borrow(), VmValue::Boolean(false));
+}
+
+#[test]
 fn test_jump() -> () {
     let program = Program::from_instructions(vec![
         Instruction::LOADV {
