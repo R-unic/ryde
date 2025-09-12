@@ -131,7 +131,7 @@ impl<'a> Vm<'a> {
             DIVK { target, a_value, b } => {
                 let b_value = self.get_register(b)?;
                 self.float_binop(target, &a_value, &b_value.borrow(), opcode_name, |a, b| {
-                    a * b
+                    a / b
                 })?
             }
             IDIV { target, a, b } => self.float_binop_reg(target, a, b, opcode_name, idiv)?,
